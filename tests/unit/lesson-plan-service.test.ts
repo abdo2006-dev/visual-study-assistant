@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LessonAIProvider } from "@/lib/ai/provider";
+import type { LessonAIProvider, VisualPlan } from "@/lib/ai/provider";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
 
-function makeFakeProvider() {
+function makeFakeProvider(planVisualsResult: VisualPlan = { assignments: [] }) {
   const lesson = createChargedSphereMockLesson();
   const createLessonPlan = vi.fn(async () => lesson);
-  const provider: LessonAIProvider = { createLessonPlan };
-  return { provider, createLessonPlan, lesson };
+  const planVisuals = vi.fn(async () => planVisualsResult);
+  const provider = { createLessonPlan, planVisuals } as unknown as LessonAIProvider;
+  return { provider, createLessonPlan, planVisuals, lesson };
 }
 
 describe("generateLessonPlan", () => {
@@ -65,5 +66,41 @@ describe("generateLessonPlan", () => {
     await generateLessonPlan(provider, { sourceText: "second text" });
 
     expect(createLessonPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it("attaches a visual the provider's planVisuals assigns to a real section", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const visual = {
+      id: "visual-1",
+      type: "scientific-diagram",
+      templateId: "radial-charged-sphere",
+      title: "Field inside the sphere",
+      educationalPurpose: "Shows how the field grows linearly inside.",
+      accessibilityDescription: "A charged sphere cross-section.",
+      parameters: {},
+      controls: [],
+      annotations: [],
+      factualChecks: [],
+      generationStatus: "ready",
+    };
+    const { provider } = makeFakeProvider({
+      assignments: [{ sectionId: "region-inside", visual }],
+    });
+
+    const result = await generateLessonPlan(provider, { sourceText: "hello world" });
+    const section = result.sections.find((s) => s.id === "region-inside");
+
+    expect(section?.visuals).toEqual([{ ...visual, sourceSectionId: "region-inside" }]);
+  });
+
+  it("still returns the lesson if planVisuals fails", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const { provider, lesson } = makeFakeProvider();
+    provider.planVisuals = vi.fn(async () => {
+      throw new Error("boom");
+    });
+
+    const result = await generateLessonPlan(provider, { sourceText: "hello world" });
+    expect(result).toEqual(lesson);
   });
 });

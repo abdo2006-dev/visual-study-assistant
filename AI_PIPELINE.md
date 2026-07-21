@@ -11,6 +11,7 @@ interface LessonAIProvider {
   extractSource(input: ExtractSourceInput): Promise<ExtractedSource>;
   modifyLesson(input: ModifyLessonInput): Promise<ModifyLessonResult>;
   verifyLesson(input: VerifyLessonInput): Promise<LessonVerification>;
+  planVisuals(input: PlanVisualsInput): Promise<VisualPlan>;
 }
 ```
 
@@ -18,18 +19,21 @@ interface LessonAIProvider {
 implementation. Swapping providers means writing one new class — no route,
 service, or UI code depends on Gemini's response shapes.
 
-## The four operations
+## The five operations
 
 | Operation | Route | Input | Output |
 |---|---|---|---|
-| Lesson planning | `/api/lesson-plan` | pasted text | a full `VisualLesson` |
-| Source extraction | `/api/extract` | a compressed screenshot | reading-order markdown |
+| Lesson planning | `/api/lesson-plan` | pasted text | a full `VisualLesson` (no visuals yet) |
+| Visual planning | *(internal — see below)* | the just-planned lesson | per-section `VisualBlock` assignments |
+| Source extraction | `/api/extract` | one or more compressed screenshots | reading-order markdown |
 | Lesson modification | `/api/lesson-patch` | a chat message + condensed lesson | a reply + `LessonPatch[]` |
 | Verification | `/api/verify-lesson` | a condensed lesson | an advisory `LessonVerification` |
 
 Each has its own prompt module under `src/lib/ai/gemini/prompts/` and its
-own Zod schema. **Visual planning is not yet a fifth operation** — see
-"What's deliberately not automated" below.
+own Zod schema. Visual planning has no route of its own — `generateLessonPlan`
+(`src/lib/ai/lessonPlanService.ts`) calls `provider.planVisuals` itself right
+after `provider.createLessonPlan`, so a single `POST /api/lesson-plan` request
+still returns a lesson with visuals already attached.
 
 ## Central model configuration
 
@@ -55,22 +59,24 @@ Every Gemini call sets `responseMimeType: "application/json"` plus a
 
 Gemini's `responseSchema` needs every field's shape known in advance,
 which a visual template's `parameters` object isn't (it depends on which
-of the seven templates got picked). The lesson-patch and add-visual paths
-work around this by having Gemini return `parametersJson: string` — a
-JSON-encoded string, a shape Gemini can always describe — which is then
-`JSON.parse`d and validated against our real `LessonPatch` schema
-(`toLessonPatch`, `src/lib/ai/gemini/toLessonPatch.ts`) before it touches
-anything. A patch that fails this second validation is dropped, not
-applied — one bad patch in a batch doesn't fail the whole chat turn.
+of the ten templates got picked). The lesson-patch and visual-planning
+paths both work around this by having Gemini return `parametersJson:
+string` — a JSON-encoded string, a shape Gemini can always describe —
+which is then `JSON.parse`d and validated against that specific
+template's own Zod schema (`toLessonPatch.ts` for chat patches,
+`toVisualBlockAssignment.ts` for planning) before it touches anything. A
+patch or assignment that fails this second validation is dropped, not
+applied — one bad item in a batch doesn't fail the whole operation.
 
 ## Keeping requests small
 
-Full `VisualLesson` objects carry a lot the AI doesn't need for chat or
-verification (annotations, factual-check placeholders, raw visual
-parameters). `src/lib/lessonPatch/condenseLesson.ts` and
-`condenseLessonForVerification.ts` produce trimmed views — ids, headings,
-explanations, equations, and each visual's *descriptive* fields only — so
-those two operations send less than the full document.
+Full `VisualLesson` objects carry a lot the AI doesn't need for chat,
+verification, or visual planning (annotations, factual-check placeholders,
+raw visual parameters). `src/lib/lessonPatch/condenseLesson.ts`,
+`condenseLessonForVerification.ts`, and `condenseLessonForVisualPlanning.ts`
+produce trimmed views — ids, headings, explanations, and equations, plus
+each existing visual's *descriptive* fields for the chat/verification
+cases — so those operations send less than the full document.
 
 ## Rate limiting and caching
 
@@ -102,12 +108,17 @@ routes:
 | client disconnect (`AbortError`) | 499 |
 | anything else | 500, generic message, no stack trace to the client |
 
-## What's deliberately not automated yet
+## Visual planning is best-effort, never blocking
 
-The AI never *decides* to attach a visual template to a freshly-generated
-lesson — `createLessonPlan` always returns empty `visuals: []` arrays.
-Visuals only appear via the hand-written mock lesson or a chat-driven
-`add-visual` patch. Automating "AI picks a template for this section" was
-judged premature with only seven templates to choose from (see the Risks
-section of IMPLEMENTATION_PLAN.md) — worth revisiting once the registry is
-larger.
+`attachPlannedVisuals` in `lessonPlanService.ts` wraps the `planVisuals`
+call in a try/catch: a rate limit, timeout, or malformed-JSON failure there
+is logged server-side and swallowed, and the lesson is returned exactly as
+`createLessonPlan` produced it — with no visuals, which is a fully usable
+lesson (the same state every lesson was in before this existed). A lesson
+generation request should never fail *because* visual planning failed.
+
+The prompt (`src/lib/ai/gemini/prompts/visualPlanning.ts`) tells the model,
+per template, what physical/mathematical setup it matches and its
+parameter shape, and instructs it to skip a section rather than force a
+template that doesn't genuinely fit — at most one visual per section, and
+it's fine (expected, even) for many sections to get none.

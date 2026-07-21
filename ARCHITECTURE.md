@@ -103,9 +103,10 @@ thin repository module:
 - **conversations** (keyPath `lessonId`) — chat message history per lesson
   (`conversationRepository.ts`).
 
-Screenshots are stored inline as a base64 data URL on
-`lesson.source.originalImage` rather than in a separate store — see the
-Risks section of IMPLEMENTATION_PLAN.md for why.
+Screenshots are stored inline as base64 data URLs on
+`lesson.source.originalImages` (one per screenshot, in upload order)
+rather than in a separate store — see the Risks section of
+IMPLEMENTATION_PLAN.md for why.
 
 ## Visual rendering
 

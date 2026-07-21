@@ -5,7 +5,7 @@ import { getModelFor } from "@/lib/ai/config";
 import { getGeminiClient } from "@/lib/ai/gemini/client";
 import { AiGenerationError, generateWithRepair } from "@/lib/ai/gemini/generateWithRepair";
 import {
-  EXTRACTION_PROMPT,
+  buildExtractionParts,
   extractionResponseSchema,
 } from "@/lib/ai/gemini/prompts/extraction";
 import {
@@ -23,14 +23,23 @@ import {
   buildVerificationPrompt,
   verificationResponseSchema,
 } from "@/lib/ai/gemini/prompts/verification";
+import {
+  aiVisualPlanSchema,
+  buildVisualPlanningPrompt,
+  visualPlanResponseSchema,
+} from "@/lib/ai/gemini/prompts/visualPlanning";
 import { toLessonPatch } from "@/lib/ai/gemini/toLessonPatch";
+import { toVisualBlockAssignment } from "@/lib/ai/gemini/toVisualBlockAssignment";
 import type {
   CreateLessonPlanInput,
   ExtractSourceInput,
   LessonAIProvider,
   ModifyLessonInput,
   ModifyLessonResult,
+  PlanVisualsInput,
   VerifyLessonInput,
+  VisualPlan,
+  VisualPlanAssignment,
 } from "@/lib/ai/provider";
 import { extractedSourceSchema } from "@/lib/schema/extraction";
 import type { ExtractedSource } from "@/lib/schema/extraction";
@@ -62,8 +71,7 @@ export class GeminiProvider implements LessonAIProvider {
   }
 
   async extractSource({
-    imageBase64,
-    mimeType,
+    images,
     mode = "economical",
     signal,
   }: ExtractSourceInput): Promise<ExtractedSource> {
@@ -75,10 +83,7 @@ export class GeminiProvider implements LessonAIProvider {
       model,
       schema: extractedSourceSchema,
       responseSchema: extractionResponseSchema,
-      initialParts: [
-        { inlineData: { mimeType, data: imageBase64 } },
-        { text: EXTRACTION_PROMPT },
-      ],
+      initialParts: buildExtractionParts(images),
       signal,
     });
   }
@@ -131,5 +136,25 @@ export class GeminiProvider implements LessonAIProvider {
       summary: aiResponse.summary,
       issues: aiResponse.issues,
     };
+  }
+
+  async planVisuals({ lesson, mode = "economical", signal }: PlanVisualsInput): Promise<VisualPlan> {
+    const client = getGeminiClient();
+    const model = getModelFor(mode);
+
+    const aiResponse = await generateWithRepair({
+      client,
+      model,
+      schema: aiVisualPlanSchema,
+      responseSchema: visualPlanResponseSchema,
+      initialParts: [{ text: buildVisualPlanningPrompt(lesson) }],
+      signal,
+    });
+
+    const assignments = aiResponse.assignments
+      .map(toVisualBlockAssignment)
+      .filter((assignment): assignment is VisualPlanAssignment => assignment !== null);
+
+    return { assignments };
   }
 }

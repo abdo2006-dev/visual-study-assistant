@@ -38,7 +38,7 @@ describe("POST /api/extract", () => {
 
     const { POST } = await import("@/app/api/extract/route");
     const response = await POST(
-      postRequest({ imageBase64: "aW1hZ2U=", mimeType: "image/png" })
+      postRequest({ images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }] })
     );
 
     expect(response.status).toBe(200);
@@ -56,7 +56,7 @@ describe("POST /api/extract", () => {
 
     const { POST } = await import("@/app/api/extract/route");
     const response = await POST(
-      postRequest({ imageBase64: "aW1hZ2U=", mimeType: "image/png" })
+      postRequest({ images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }] })
     );
     expect(response.status).toBe(400);
   });
@@ -67,7 +67,7 @@ describe("POST /api/extract", () => {
 
     const { POST } = await import("@/app/api/extract/route");
     const response = await POST(
-      postRequest({ imageBase64: "aW1hZ2U=", mimeType: "image/png" })
+      postRequest({ images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }] })
     );
     expect(response.status).toBe(502);
   });
@@ -85,7 +85,7 @@ describe("POST /api/extract", () => {
 
     const { POST } = await import("@/app/api/extract/route");
     const response = await POST(
-      postRequest({ imageBase64: "aW1hZ2U=", mimeType: "image/png" })
+      postRequest({ images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }] })
     );
 
     expect(response.status).toBe(504);

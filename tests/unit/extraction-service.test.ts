@@ -12,8 +12,7 @@ function makeFakeProvider() {
 }
 
 const validInput: ExtractSourceInput = {
-  imageBase64: "aW1hZ2UtZGF0YQ==",
-  mimeType: "image/jpeg",
+  images: [{ imageBase64: "aW1hZ2UtZGF0YQ==", mimeType: "image/jpeg" }],
 };
 
 describe("extractLessonSource", () => {
@@ -36,7 +35,7 @@ describe("extractLessonSource", () => {
     const { provider, extractSource } = makeFakeProvider();
 
     await expect(
-      extractLessonSource(provider, { ...validInput, imageBase64: "" })
+      extractLessonSource(provider, { images: [] })
     ).rejects.toThrow(InvalidExtractionRequestError);
     expect(extractSource).not.toHaveBeenCalled();
   });
@@ -48,7 +47,9 @@ describe("extractLessonSource", () => {
     const { provider, extractSource } = makeFakeProvider();
 
     await expect(
-      extractLessonSource(provider, { ...validInput, mimeType: "application/pdf" })
+      extractLessonSource(provider, {
+        images: [{ imageBase64: "aW1hZ2U=", mimeType: "application/pdf" }],
+      })
     ).rejects.toThrow(InvalidExtractionRequestError);
     expect(extractSource).not.toHaveBeenCalled();
   });
@@ -61,11 +62,40 @@ describe("extractLessonSource", () => {
 
     await expect(
       extractLessonSource(provider, {
-        ...validInput,
-        imageBase64: "A".repeat(12_000_000),
+        images: [{ imageBase64: "A".repeat(12_000_000), mimeType: "image/jpeg" }],
       })
     ).rejects.toThrow(InvalidExtractionRequestError);
     expect(extractSource).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than the max number of screenshots without calling the provider", async () => {
+    const { extractLessonSource, InvalidExtractionRequestError } = await import(
+      "@/lib/ai/extractionService"
+    );
+    const { provider, extractSource } = makeFakeProvider();
+
+    await expect(
+      extractLessonSource(provider, {
+        images: Array.from({ length: 7 }, () => ({
+          imageBase64: "aW1hZ2U=",
+          mimeType: "image/jpeg",
+        })),
+      })
+    ).rejects.toThrow(InvalidExtractionRequestError);
+    expect(extractSource).not.toHaveBeenCalled();
+  });
+
+  it("accepts several screenshots in one request", async () => {
+    const { extractLessonSource } = await import("@/lib/ai/extractionService");
+    const { provider, extractSource } = makeFakeProvider();
+
+    await extractLessonSource(provider, {
+      images: [
+        { imageBase64: "aW1hZ2Ux", mimeType: "image/png" },
+        { imageBase64: "aW1hZ2Uy", mimeType: "image/png" },
+      ],
+    });
+    expect(extractSource).toHaveBeenCalledTimes(1);
   });
 
   it("caches identical requests instead of calling the provider twice", async () => {

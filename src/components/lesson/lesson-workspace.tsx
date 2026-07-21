@@ -115,19 +115,26 @@ export function LessonWorkspace({
         </div>
       </div>
 
-      {lesson.source.kind === "screenshot" && lesson.source.originalImage && (
-        <details className="rounded-md border border-border p-3">
-          <summary className="cursor-pointer text-sm font-medium">
-            Original screenshot
-          </summary>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lesson.source.originalImage}
-            alt="Original uploaded screenshot"
-            className="mt-3 max-h-96 rounded-md border border-border object-contain"
-          />
-        </details>
-      )}
+      {lesson.source.kind === "screenshot" &&
+        lesson.source.originalImages &&
+        lesson.source.originalImages.length > 0 && (
+          <details className="rounded-md border border-border p-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Original screenshot{lesson.source.originalImages.length > 1 ? "s" : ""}
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              {lesson.source.originalImages.map((image, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Original uploaded screenshot ${index + 1}`}
+                  className="max-h-96 rounded-md border border-border object-contain"
+                />
+              ))}
+            </div>
+          </details>
+        )}
 
       {lesson.learningObjectives.length > 0 && (
         <div>

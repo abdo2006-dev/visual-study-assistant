@@ -28,7 +28,7 @@ type VisualLesson = {
 type LessonSource = {
   kind: "pasted-text" | "screenshot" | "mock";
   originalText?: string;
-  originalImage?: string;  // data URL, screenshot only
+  originalImages?: string[];  // data URLs, screenshot only, one per screenshot
 };
 
 type LessonSection = {

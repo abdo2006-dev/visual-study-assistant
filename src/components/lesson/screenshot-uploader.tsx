@@ -14,12 +14,14 @@ type PreviewState = {
   fileName: string;
 };
 
+const MAX_IMAGES = 6;
+
 export function ScreenshotUploader({
   onExtracted,
 }: {
-  onExtracted: (markdown: string, imageDataUrl: string) => void;
+  onExtracted: (markdown: string, imageDataUrls: string[]) => void;
 }) {
-  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [previews, setPreviews] = useState<PreviewState[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -29,37 +31,56 @@ export function ScreenshotUploader({
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent) {
-      const item = Array.from(event.clipboardData?.items ?? []).find((entry) =>
+      const items = Array.from(event.clipboardData?.items ?? []).filter((entry) =>
         entry.type.startsWith("image/")
       );
-      const file = item?.getAsFile();
-      if (file) {
+      const files = items.map((item) => item.getAsFile()).filter((f): f is File => f !== null);
+      if (files.length > 0) {
         event.preventDefault();
-        handleFile(file);
+        handleFiles(files);
       }
     }
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, []);
+    // Re-registered whenever previews.length changes so handleFiles' cap
+    // check always sees the current count, not a stale closure from mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previews.length]);
 
-  async function handleFile(file: File) {
+  async function handleFiles(files: File[]) {
     setError(null);
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      setError(validation.error);
+
+    const remainingSlots = MAX_IMAGES - previews.length;
+    if (remainingSlots <= 0) {
+      setError(`You can attach up to ${MAX_IMAGES} screenshots.`);
       return;
+    }
+    const toProcess = files.slice(0, remainingSlots);
+    if (files.length > toProcess.length) {
+      setError(`Only added the first ${toProcess.length} — up to ${MAX_IMAGES} screenshots total.`);
+    }
+
+    for (const file of toProcess) {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        setError(validation.error);
+        return;
+      }
     }
 
     setProcessing(true);
     try {
-      const compressed = await compressImage(file);
-      setPreview({
-        dataUrl: compressed.dataUrl,
-        mimeType: compressed.mimeType,
-        width: compressed.width,
-        height: compressed.height,
-        fileName: file.name,
-      });
+      const compressed = await Promise.all(toProcess.map((file) => compressImage(file)));
+      setPreviews((current) => [
+        ...current,
+        ...compressed.map((result, i) => ({
+          dataUrl: result.dataUrl,
+          mimeType: result.mimeType,
+          width: result.width,
+          height: result.height,
+          fileName: toProcess[i].name,
+        })),
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not process that image.");
     } finally {
@@ -67,13 +88,18 @@ export function ScreenshotUploader({
     }
   }
 
-  function handleRemove() {
-    setPreview(null);
+  function handleRemove(index: number) {
+    setPreviews((current) => current.filter((_, i) => i !== index));
+    setError(null);
+  }
+
+  function handleRemoveAll() {
+    setPreviews([]);
     setError(null);
   }
 
   async function handleExtract() {
-    if (!preview) return;
+    if (previews.length === 0) return;
     setExtracting(true);
     setError(null);
     const controller = new AbortController();
@@ -84,8 +110,10 @@ export function ScreenshotUploader({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageBase64: dataUrlToBase64(preview.dataUrl),
-          mimeType: preview.mimeType,
+          images: previews.map((preview) => ({
+            imageBase64: dataUrlToBase64(preview.dataUrl),
+            mimeType: preview.mimeType,
+          })),
         }),
         signal: controller.signal,
       });
@@ -95,7 +123,10 @@ export function ScreenshotUploader({
         throw new Error(body.error ?? "Failed to extract text from the image.");
       }
 
-      onExtracted(body.markdown, preview.dataUrl);
+      onExtracted(
+        body.markdown,
+        previews.map((preview) => preview.dataUrl)
+      );
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError("Extraction cancelled.");
@@ -112,20 +143,58 @@ export function ScreenshotUploader({
     abortControllerRef.current?.abort();
   }
 
-  if (preview) {
+  if (previews.length > 0) {
     return (
       <div className="flex flex-col gap-3 rounded-md border border-border p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={preview.dataUrl}
-          alt="Uploaded screenshot preview"
-          className="max-h-64 w-full rounded-md border border-border object-contain"
-        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {previews.map((preview, index) => (
+            <div key={index} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={preview.dataUrl}
+                alt={`Uploaded screenshot preview ${index + 1}`}
+                className="h-32 w-full rounded-md border border-border object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                disabled={extracting}
+                aria-label={`Remove screenshot ${index + 1}`}
+                className="absolute right-1 top-1 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium text-foreground shadow-sm hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          {previews.length < MAX_IMAGES && !extracting && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={processing}
+              className="flex h-32 w-full items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {processing ? "Processing..." : "+ Add another"}
+            </button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
-          {preview.fileName} — {preview.width}×{preview.height}
+          {previews.length} screenshot{previews.length === 1 ? "" : "s"}
+          {previews.length > 1 ? " — extracted together, in this order" : ""}
         </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            if (files.length > 0) handleFiles(files);
+            event.target.value = "";
+          }}
+        />
         <div className="flex items-center gap-3">
-          <Button onClick={handleExtract} disabled={extracting}>
+          <Button onClick={handleExtract} disabled={extracting || processing}>
             {extracting ? "Extracting text..." : "Extract text"}
           </Button>
           {extracting ? (
@@ -133,8 +202,8 @@ export function ScreenshotUploader({
               Cancel
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleRemove} disabled={extracting}>
-              Remove
+            <Button variant="outline" onClick={handleRemoveAll} disabled={extracting}>
+              Remove all
             </Button>
           )}
         </div>
@@ -153,25 +222,28 @@ export function ScreenshotUploader({
       onDrop={(event) => {
         event.preventDefault();
         setDragActive(false);
-        const file = event.dataTransfer.files?.[0];
-        if (file) handleFile(file);
+        const files = Array.from(event.dataTransfer.files ?? []);
+        if (files.length > 0) handleFiles(files);
       }}
       className={`flex flex-col items-center gap-3 rounded-md border border-dashed p-8 text-center transition-colors ${
         dragActive ? "border-primary bg-accent" : "border-border"
       }`}
     >
       <p className="text-sm font-medium">
-        Drag and drop a screenshot, paste one, or choose a file
+        Drag and drop screenshots, paste them, or choose files
       </p>
-      <p className="text-xs text-muted-foreground">PNG, JPEG, or WebP</p>
+      <p className="text-xs text-muted-foreground">
+        PNG, JPEG, or WebP — up to {MAX_IMAGES} at once, e.g. consecutive pages
+      </p>
       <input
         ref={fileInputRef}
         type="file"
         accept="image/png,image/jpeg,image/webp"
+        multiple
         className="hidden"
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) handleFile(file);
+          const files = Array.from(event.target.files ?? []);
+          if (files.length > 0) handleFiles(files);
           event.target.value = "";
         }}
       />
@@ -180,7 +252,7 @@ export function ScreenshotUploader({
         onClick={() => fileInputRef.current?.click()}
         disabled={processing}
       >
-        {processing ? "Processing..." : "Choose file"}
+        {processing ? "Processing..." : "Choose files"}
       </Button>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

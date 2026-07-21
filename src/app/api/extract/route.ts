@@ -12,8 +12,9 @@ export const runtime = "nodejs";
 const TIMEOUT_MS = Number(process.env.EXTRACT_TIMEOUT_MS) || 60_000;
 
 const requestBodySchema = z.object({
-  imageBase64: z.string(),
-  mimeType: z.string(),
+  images: z
+    .array(z.object({ imageBase64: z.string(), mimeType: z.string() }))
+    .min(1),
   mode: economyModeSchema.optional(),
 });
 
@@ -28,7 +29,10 @@ export async function POST(request: Request) {
   const parsedBody = requestBodySchema.safeParse(body);
   if (!parsedBody.success) {
     return NextResponse.json(
-      { error: "Expected { imageBase64: string, mimeType: string, mode?: string }." },
+      {
+        error:
+          "Expected { images: { imageBase64: string, mimeType: string }[], mode?: string }.",
+      },
       { status: 400 }
     );
   }
@@ -39,8 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const extracted = await extractLessonSource(new GeminiProvider(), {
-      imageBase64: parsedBody.data.imageBase64,
-      mimeType: parsedBody.data.mimeType,
+      images: parsedBody.data.images,
       mode: parsedBody.data.mode,
       signal,
     });

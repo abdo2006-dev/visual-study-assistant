@@ -38,12 +38,12 @@ test("uploading a screenshot extracts text, prefills the form, and tags the save
   await page.getByRole("button", { name: "Upload screenshot" }).click();
 
   await expect(
-    page.getByText("Drag and drop a screenshot, paste one, or choose a file")
+    page.getByText("Drag and drop screenshots, paste them, or choose files")
   ).toBeVisible();
 
   await page.locator('input[type="file"]').setInputFiles(fixturePath);
 
-  await expect(page.getByRole("img", { name: "Uploaded screenshot preview" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Uploaded screenshot preview 1" })).toBeVisible();
   await page.getByRole("button", { name: "Extract text" }).click();
 
   const textarea = page.getByPlaceholder("Paste a text explanation here...");
@@ -57,8 +57,35 @@ test("uploading a screenshot extracts text, prefills the form, and tags the save
 
   await page.getByText("Original screenshot").click();
   await expect(
-    page.getByRole("img", { name: "Original uploaded screenshot" })
+    page.getByRole("img", { name: "Original uploaded screenshot 1" })
   ).toBeVisible();
+});
+
+test("supports attaching more than one screenshot in a single extraction", async ({ page }) => {
+  await page.route("**/api/extract", async (route) => {
+    const body = route.request().postDataJSON() as { images: unknown[] };
+    expect(body.images).toHaveLength(2);
+    await route.fulfill({
+      status: 200,
+      json: { markdown: "# Combined\n\nText from both screenshots." },
+    });
+  });
+  await page.route("**/api/lesson-plan", async (route) => {
+    await route.fulfill({ status: 200, json: mockLesson });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Upload screenshot" }).click();
+  await page.locator('input[type="file"]').setInputFiles([fixturePath, fixturePath]);
+
+  await expect(page.getByRole("img", { name: "Uploaded screenshot preview 1" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Uploaded screenshot preview 2" })).toBeVisible();
+  await expect(page.getByText("2 screenshots")).toBeVisible();
+
+  await page.getByRole("button", { name: "Extract text" }).click();
+  await expect(page.getByPlaceholder("Paste a text explanation here...")).toHaveValue(
+    /Combined/
+  );
 });
 
 test("rejects an unsupported file type before calling the extract API", async ({ page }) => {

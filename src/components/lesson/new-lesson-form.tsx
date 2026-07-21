@@ -14,7 +14,7 @@ export function NewLessonForm() {
   const router = useRouter();
   const [entryMode, setEntryMode] = useState<"text" | "upload">("text");
   const [sourceText, setSourceText] = useState("");
-  const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(null);
+  const [screenshotDataUrls, setScreenshotDataUrls] = useState<string[] | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exampleLoading, setExampleLoading] = useState(false);
@@ -23,13 +23,13 @@ export function NewLessonForm() {
   function handleSourceTextChange(value: string) {
     setSourceText(value);
     // A manual edit means the text is no longer purely what was extracted
-    // from the screenshot, so stop tagging the eventual lesson as one.
-    setScreenshotDataUrl(null);
+    // from the screenshot(s), so stop tagging the eventual lesson as one.
+    setScreenshotDataUrls(null);
   }
 
-  function handleExtracted(markdown: string, imageDataUrl: string) {
+  function handleExtracted(markdown: string, imageDataUrls: string[]) {
     setSourceText(markdown);
-    setScreenshotDataUrl(imageDataUrl);
+    setScreenshotDataUrls(imageDataUrls);
     setEntryMode("text");
     setError(null);
   }
@@ -59,11 +59,11 @@ export function NewLessonForm() {
       }
 
       const lesson = visualLessonSchema.parse(body);
-      if (screenshotDataUrl) {
+      if (screenshotDataUrls) {
         lesson.source = {
           kind: "screenshot",
           originalText: sourceText,
-          originalImage: screenshotDataUrl,
+          originalImages: screenshotDataUrls,
         };
       }
       await saveLesson(lesson);
@@ -101,10 +101,10 @@ export function NewLessonForm() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">New lesson</h1>
         <p className="text-sm text-muted-foreground">
-          Paste an explanation, or upload a screenshot to extract its text.
-          The AI turns it into sections with a simplified explanation and
-          any equations it finds. Ask the chat on a lesson to add an
-          interactive visual once it&apos;s generated.
+          Paste an explanation, or upload one or more screenshots (e.g.
+          consecutive pages) to extract their text. The AI turns it into
+          sections with a simplified explanation, any equations it finds,
+          and an interactive visual wherever one genuinely helps.
         </p>
       </div>
 
@@ -129,10 +129,10 @@ export function NewLessonForm() {
             rows={8}
             className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
           />
-          {screenshotDataUrl && (
+          {screenshotDataUrls && (
             <p className="text-xs text-muted-foreground">
-              Text extracted from your screenshot — edit it above before
-              generating if needed.
+              Text extracted from your screenshot{screenshotDataUrls.length > 1 ? "s" : ""} —
+              edit it above before generating if needed.
             </p>
           )}
 

@@ -4,10 +4,9 @@ import { LESSON_SCHEMA_VERSION, type VisualLesson } from "@/lib/schema/lesson";
  * A hand-written stand-in for what the AI lesson-planning pipeline
  * produces. Used to exercise the local library (storage, library list,
  * workspace view, export/import) without spending Gemini quota, and to
- * demonstrate the radial-charged-sphere visual template. AI-driven visual
- * planning (the AI itself deciding to attach this template to a real
- * generated lesson) is intentionally deferred until Milestone 6 adds more
- * templates to choose from — see IMPLEMENTATION_PLAN.md.
+ * demonstrate the radial-charged-sphere visual template with a fixed,
+ * hand-picked visual rather than one chosen by the visual-planning AI pass
+ * (see lessonPlanService.ts).
  */
 export function createChargedSphereMockLesson(): VisualLesson {
   const now = new Date().toISOString();

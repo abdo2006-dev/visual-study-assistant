@@ -27,8 +27,7 @@ describe("GeminiProvider.extractSource", () => {
 
     const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
     const result = await new GeminiProvider().extractSource({
-      imageBase64: "ZmFrZS1pbWFnZS1ieXRlcw==",
-      mimeType: "image/jpeg",
+      images: [{ imageBase64: "ZmFrZS1pbWFnZS1ieXRlcw==", mimeType: "image/jpeg" }],
     });
 
     expect(result.markdown).toBe("# Title\n\nSome extracted text.");
@@ -42,6 +41,27 @@ describe("GeminiProvider.extractSource", () => {
     });
   });
 
+  it("labels each screenshot in order when given more than one", async () => {
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ markdown: "combined text" }),
+    });
+
+    const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
+    await new GeminiProvider().extractSource({
+      images: [
+        { imageBase64: "aW1hZ2Ux", mimeType: "image/png" },
+        { imageBase64: "aW1hZ2Uy", mimeType: "image/png" },
+      ],
+    });
+
+    const call = generateContent.mock.calls[0][0];
+    const parts = call.contents[0].parts;
+    expect(parts[0]).toEqual({ text: "Screenshot 1 of 2:" });
+    expect(parts[1].inlineData).toEqual({ mimeType: "image/png", data: "aW1hZ2Ux" });
+    expect(parts[2]).toEqual({ text: "Screenshot 2 of 2:" });
+    expect(parts[3].inlineData).toEqual({ mimeType: "image/png", data: "aW1hZ2Uy" });
+  });
+
   it("repairs an invalid first response by retrying once", async () => {
     generateContent
       .mockResolvedValueOnce({ text: "not valid json" })
@@ -49,8 +69,7 @@ describe("GeminiProvider.extractSource", () => {
 
     const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
     const result = await new GeminiProvider().extractSource({
-      imageBase64: "aW1hZ2U=",
-      mimeType: "image/png",
+      images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }],
     });
 
     expect(result.markdown).toBe("recovered text");
@@ -66,7 +85,9 @@ describe("GeminiProvider.extractSource", () => {
       "@/lib/ai/gemini/geminiProvider"
     );
     await expect(
-      new GeminiProvider().extractSource({ imageBase64: "aW1hZ2U=", mimeType: "image/png" })
+      new GeminiProvider().extractSource({
+        images: [{ imageBase64: "aW1hZ2U=", mimeType: "image/png" }],
+      })
     ).rejects.toThrow(AiGenerationError);
   });
 });

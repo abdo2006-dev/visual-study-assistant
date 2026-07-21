@@ -15,13 +15,23 @@
 - **Milestone 8** — advisory verification pass, accessibility audit
   (automated axe scans + fixes), responsive-layout check and fixes,
   this documentation set.
+- **Milestone 9** — AI-driven visual planning (lesson generation now
+  attaches visuals itself, best-effort — see AI_PIPELINE.md), plus three
+  more templates for electromagnetics content the registry didn't cover
+  yet: `long-charged-wire` (cylindrical symmetry), `infinite-plane`
+  (planar symmetry / parallel plates), and `electric-dipole`.
+- **Milestone 10** — multiple screenshots per lesson: `ScreenshotUploader`
+  and `/api/extract` now take an array of images (up to 6) and combine
+  them into one extraction in the given order.
 
 ## Known limitations / deliberately out of scope
 
-- **AI-driven visual planning doesn't exist yet.** `createLessonPlan`
-  always returns `visuals: []`; a generated lesson has no visuals unless
-  you add one via chat. This was deferred until the registry had enough
-  templates to choose from — see AI_PIPELINE.md.
+- **Visual planning is best-effort, not guaranteed.** The AI is
+  instructed to skip a section rather than force a template that doesn't
+  genuinely fit — many sections (definitions, historical asides) are
+  expected to get no visual. A planning failure (rate limit, timeout)
+  degrades to the old behavior (no visuals) rather than failing lesson
+  generation — see AI_PIPELINE.md.
 - **Single AI provider.** `LessonAIProvider` is designed to be swappable,
   but `GeminiProvider` is the only implementation. No UI exists to switch
   models/providers or economy modes — every route defaults to
@@ -37,8 +47,8 @@
   preferences beyond dark/light, or provider status.
 - **Rate limiting is per-process**, not distributed — see the Vercel
   caveat in SECURITY.md.
-- **Milestone 9 (optional Cloudflare deployment) wasn't pursued.** The app
-  is deployed on Vercel; the codebase avoids Vercel-only primitives so a
+- **The Cloudflare deployment option wasn't pursued.** The app is
+  deployed on Vercel; the codebase avoids Vercel-only primitives so a
   future move via `@opennextjs/cloudflare` stays realistic, but this
   hasn't been attempted.
 
@@ -46,18 +56,18 @@
 
 Roughly in order of likely value:
 
-1. **AI-driven visual planning** — have lesson generation (or a follow-up
-   pass) decide which of the seven templates fits each section and supply
-   parameters for it, instead of requiring a chat request per visual.
-2. **More visual templates** — the seven cover the flagship electrostatics
-   example plus six general-purpose diagrams; more subject-specific
-   templates (e.g. a titration/pH curve for chemistry, an energy-level
-   diagram, a free-body diagram) would broaden coverage.
-3. **Multiple screenshots per lesson** — currently one image in, one
-   extraction out.
-4. **Bulk/multi-document import** — paste or upload a large block of
-   source material and have it split into multiple lessons (or grouped
-   into one), rather than one paste → one lesson.
-5. **Settings UI** for economy mode and provider status, per
+1. **Bulk/multi-document import** — paste or upload a large block of
+   source material and have an AI pass propose a topic-based split into
+   multiple lessons (or one, if the material is cohesive), reviewed and
+   adjustable before each lesson generates independently through the
+   normal pipeline (so per-lesson quality doesn't degrade with more
+   material, unlike a single AI call trying to generate everything at
+   once).
+2. **More visual templates** — the ten cover electrostatics (point,
+   spherical, cylindrical, and planar symmetry, plus dipoles) and six
+   general-purpose diagrams; more subject-specific templates (e.g. a
+   titration/pH curve for chemistry, an energy-level diagram, a
+   free-body diagram) would broaden coverage further.
+3. **Settings UI** for economy mode and provider status, per
    IMPLEMENTATION_PLAN.md section 18.
-6. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.
+4. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.

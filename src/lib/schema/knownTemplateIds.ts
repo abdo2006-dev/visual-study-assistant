@@ -14,4 +14,7 @@ export const KNOWN_TEMPLATE_IDS = [
   "coordinate-geometry",
   "wave-diagram",
   "simple-circuit",
+  "long-charged-wire",
+  "infinite-plane",
+  "electric-dipole",
 ] as const;

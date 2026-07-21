@@ -75,6 +75,14 @@ Using `radial-charged-sphere` as the worked example:
    type matches the component's `parameters` prop — a mismatch is a
    compile error here, not a runtime surprise later.
 
+   Also add the new `templateId` to `KNOWN_TEMPLATE_IDS`
+   (`src/lib/schema/knownTemplateIds.ts`) and to `templateParamsSchemas`
+   (`src/lib/schema/templates/templateParamsSchemas.ts`) — both are kept
+   separate from `registry.ts` specifically so server-only AI code (the
+   chat-patch and visual-planning prompts) can reference known ids and
+   validate parameters without pulling React components into a server
+   bundle.
+
 5. **Test it**: a schema test (defaults, rejects invalid input), a pure-logic
    test if you extracted one, and a render test via `VisualBlockRenderer`
    (known templateId + valid params renders your component; invalid
@@ -83,13 +91,17 @@ Using `radial-charged-sphere` as the worked example:
 
 ## What the AI does and doesn't control
 
-The AI (once visual planning is wired up — see the Risks note in
-`IMPLEMENTATION_PLAN.md`) supplies `templateId` and `parameters` only.
-Anything that must be physically/mathematically correct — formulas, region
-boundaries, geometry — belongs in your component or its logic module, not
-in something the AI decides per-lesson. `parameters` should describe
-*configuration* (which variant, what to show/hide, an initial value), not
-facts that could be wrong.
+The AI supplies `templateId` and `parameters` only — either automatically,
+via the visual-planning pass right after lesson generation (see
+AI_PIPELINE.md), or on request, via a chat-driven `add-visual` patch. A new
+template's description also needs adding to the visual-planning prompt
+(`src/lib/ai/gemini/prompts/visualPlanning.ts`) and its params schema to
+`src/lib/schema/templates/templateParamsSchemas.ts`, so both paths can pick
+it. Anything that must be physically/mathematically correct — formulas,
+region boundaries, geometry — belongs in your component or its logic
+module, not in something the AI decides per-lesson. `parameters` should
+describe *configuration* (which variant, what to show/hide, an initial
+value), not facts that could be wrong.
 
 ## Accessibility
 
