@@ -42,4 +42,23 @@ describe("VisualBlockRenderer", () => {
       screen.getByText(/parameters could not be validated/)
     ).toBeInTheDocument();
   });
+
+  const allTemplateIds = [
+    "radial-charged-sphere",
+    "force-vector-diagram",
+    "particle-container",
+    "process-flow-diagram",
+    "coordinate-geometry",
+    "wave-diagram",
+    "simple-circuit",
+  ];
+
+  it.each(allTemplateIds)("renders %s with default (empty) parameters", (templateId) => {
+    render(
+      <VisualBlockRenderer
+        block={makeBlock({ templateId, parameters: {} })}
+      />
+    );
+    expect(screen.getAllByRole("img").length).toBeGreaterThan(0);
+  });
 });

@@ -9,9 +9,11 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full
 architecture, schema design, and milestone plan, and
 [VISUAL_TEMPLATE_GUIDE.md](./VISUAL_TEMPLATE_GUIDE.md) for how the visual
 registry works and how to add a new template. This README covers running
-what currently exists (through Milestone 5: app shell, local library,
-text-to-lesson generation, screenshot upload/extraction, and the first
-interactive visual template with KaTeX equation rendering).
+what currently exists (through Milestone 6: app shell, local library,
+text-to-lesson generation, screenshot upload/extraction, KaTeX equations,
+and all seven initial visual templates — charged sphere, force vectors,
+particle diffusion, process flow, coordinate geometry, waves, and a simple
+circuit).
 
 ## Prerequisites
 
