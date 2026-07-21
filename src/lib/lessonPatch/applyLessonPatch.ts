@@ -105,8 +105,42 @@ export function applyLessonPatch(lesson: VisualLesson, patch: LessonPatch): Visu
   }
 }
 
-/** Applies patches in order, then validates the final result against the full lesson schema. */
-export function applyLessonPatches(lesson: VisualLesson, patches: LessonPatch[]): VisualLesson {
-  const result = patches.reduce((current, patch) => applyLessonPatch(current, patch), lesson);
-  return visualLessonSchema.parse(result);
+export interface FailedPatch {
+  patch: LessonPatch;
+  error: string;
+}
+
+export interface ApplyLessonPatchesResult {
+  lesson: VisualLesson;
+  failed: FailedPatch[];
+}
+
+/**
+ * Applies each patch independently rather than all-or-nothing: one bad
+ * patch (e.g. a stale section id, or two patches from the same AI response
+ * that conflict) is skipped and recorded, not allowed to discard every
+ * other patch in the batch. The final lesson always validates against the
+ * full schema. Callers should surface `failed` to the user — the AI's own
+ * chat reply is written before patches are applied, so it can describe
+ * success even when some (or all) of them don't actually apply.
+ */
+export function applyLessonPatches(
+  lesson: VisualLesson,
+  patches: LessonPatch[]
+): ApplyLessonPatchesResult {
+  const failed: FailedPatch[] = [];
+  let current = lesson;
+
+  for (const patch of patches) {
+    try {
+      current = applyLessonPatch(current, patch);
+    } catch (err) {
+      failed.push({
+        patch,
+        error: err instanceof PatchApplicationError ? err.message : "Failed to apply this change.",
+      });
+    }
+  }
+
+  return { lesson: visualLessonSchema.parse(current), failed };
 }

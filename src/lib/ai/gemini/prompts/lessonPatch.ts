@@ -2,8 +2,8 @@ import { Type } from "@google/genai";
 import { z } from "zod";
 
 import type { ChatTurn } from "@/lib/ai/provider";
+import { TEMPLATE_DESCRIPTIONS } from "@/lib/ai/gemini/prompts/templateDescriptions";
 import type { CondensedLesson } from "@/lib/lessonPatch/condenseLesson";
-import { KNOWN_TEMPLATE_IDS } from "@/lib/schema/knownTemplateIds";
 
 /**
  * Gemini's structured-output schema needs every field's shape known ahead
@@ -87,11 +87,15 @@ You can make these kinds of changes ("patches"), each identified by its "op":
 - remove-section: delete an entire section (sectionId)
 - add-prerequisite: add a prerequisite topic to the lesson (prerequisite)
 
-For add-visual and update-visual-parameters, templateId must be one of exactly:
-${KNOWN_TEMPLATE_IDS.join(", ")}
-If none of these fit what the user is asking for, don't invent a new templateId — explain in your reply that it isn't available yet instead, and return no patch for that request.
+For add-visual and update-visual-parameters, templateId must be one of these, and parametersJson must use ONLY that template's own parameter fields (a JSON-encoded object string, omitted fields fall back to defaults):
+
+${TEMPLATE_DESCRIPTIONS}
+
+If none of these genuinely match what the user is asking for, don't invent a templateId or force the closest-but-wrong one — explain in your reply that it isn't available yet instead, and return no patch for that request.
 
 Only reference section/visual ids that actually exist in the lesson below. If the user's request doesn't require changing the lesson (e.g. they're asking a question), return an empty patches array and just answer in your reply.
+
+Your "reply" must describe only what the "patches" array you're returning actually contains — never claim a change was made unless there's a corresponding patch for it in this same response.
 
 Output valid JSON matching the provided schema exactly, with no other text.`;
 

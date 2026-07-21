@@ -1,13 +1,39 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  axialFieldEquationLatex,
+  axialFieldMagnitudeNormalized,
   dipoleMomentEquationLatex,
+  equatorialFieldEquationLatex,
+  equatorialFieldMagnitudeNormalized,
   generateDipoleFieldLines,
   potentialEnergyEquationLatex,
   potentialEnergyNormalized,
   torqueEquationLatex,
   torqueMagnitudeNormalized,
 } from "@/components/visuals/scientific-diagram/electric-dipole-physics";
+
+describe("far-field axial vs equatorial magnitude", () => {
+  it("axial is always exactly twice the equatorial magnitude at the same distance", () => {
+    for (const ratio of [1.5, 2, 3, 4, 5]) {
+      expect(axialFieldMagnitudeNormalized(ratio)).toBeCloseTo(
+        2 * equatorialFieldMagnitudeNormalized(ratio)
+      );
+    }
+  });
+
+  it("both fall off as 1/r^3, so their ratio stays 2:1 as distance changes", () => {
+    const axialAt2 = axialFieldMagnitudeNormalized(2);
+    const axialAt4 = axialFieldMagnitudeNormalized(4);
+    // Doubling the distance should drop the field to 1/8 (2^3).
+    expect(axialAt4).toBeCloseTo(axialAt2 / 8);
+  });
+
+  it("exposes the expected LaTeX", () => {
+    expect(axialFieldEquationLatex).toBe("E_{axial} = \\dfrac{2kp}{r^3}");
+    expect(equatorialFieldEquationLatex).toBe("E_{equatorial} = \\dfrac{kp}{r^3}");
+  });
+});
 
 describe("torqueMagnitudeNormalized", () => {
   it("is zero at the two equilibria and maximal at 90 degrees", () => {

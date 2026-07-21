@@ -6,7 +6,11 @@ import { Equation } from "@/components/equations/equation";
 import type { ElectricDipoleParams } from "@/lib/schema/templates/electricDipole";
 
 import {
+  axialFieldEquationLatex,
+  axialFieldMagnitudeNormalized,
   dipoleMomentEquationLatex,
+  equatorialFieldEquationLatex,
+  equatorialFieldMagnitudeNormalized,
   generateDipoleFieldLines,
   potentialEnergyEquationLatex,
   potentialEnergyNormalized,
@@ -30,6 +34,13 @@ function degToRad(deg: number) {
 }
 
 export function ElectricDipole({ parameters }: { parameters: ElectricDipoleParams }) {
+  if (parameters.mode === "far-field-comparison") {
+    return <FarFieldComparisonDiagram parameters={parameters} />;
+  }
+  return <TorqueInFieldDiagram parameters={parameters} />;
+}
+
+function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams }) {
   const {
     showFieldLines,
     showExternalField,
@@ -265,6 +276,167 @@ export function ElectricDipole({ parameters }: { parameters: ElectricDipoleParam
           </svg>
         </div>
       )}
+    </div>
+  );
+}
+
+const FAR_FIELD_UNIT_PX = 55; // pixels per unit distanceRatio, for observation-point placement
+const FAR_FIELD_MAX_ARROW_PX = 70;
+
+function FarFieldComparisonDiagram({ parameters }: { parameters: ElectricDipoleParams }) {
+  const { initialDistanceRatio } = parameters;
+  const [ratio, setRatio] = useState(initialDistanceRatio);
+  const sliderId = useId();
+
+  const axialMagnitude = axialFieldMagnitudeNormalized(ratio);
+  const equatorialMagnitude = equatorialFieldMagnitudeNormalized(ratio);
+  // Scale both arrows by the same factor so their 2:1 ratio stays visible
+  // at any slider position, rather than one saturating the drawing area.
+  const arrowScale = FAR_FIELD_MAX_ARROW_PX / axialFieldMagnitudeNormalized(1.5);
+
+  const plusPoint = { x: CENTER + D_PX, y: CENTER };
+  const minusPoint = { x: CENTER - D_PX, y: CENTER };
+
+  const axialPoint = { x: CENTER + ratio * FAR_FIELD_UNIT_PX, y: CENTER };
+  const equatorialPoint = { x: CENTER, y: CENTER - ratio * FAR_FIELD_UNIT_PX };
+
+  const axialArrowLength = axialMagnitude * arrowScale;
+  const equatorialArrowLength = equatorialMagnitude * arrowScale;
+
+  return (
+    <div className="flex flex-col gap-4 rounded-md border border-border p-4">
+      <svg
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        role="img"
+        aria-label={`Electric dipole far field at distance ratio ${ratio.toFixed(1)}: axial field ${axialMagnitude.toFixed(2)} (in units of kp), equatorial field ${equatorialMagnitude.toFixed(2)}, axial pointing along the dipole moment and equatorial pointing opposite to it`}
+        className="w-full max-w-md self-center"
+      >
+        <defs>
+          <marker id="axial-arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--color-primary)" />
+          </marker>
+          <marker id="equatorial-arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="#f59e0b" />
+          </marker>
+          <marker id="ff-dipole-moment-arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--color-foreground)" />
+          </marker>
+        </defs>
+
+        <line
+          x1={minusPoint.x}
+          y1={minusPoint.y}
+          x2={plusPoint.x - CHARGE_RADIUS - 2}
+          y2={plusPoint.y}
+          stroke="var(--color-foreground)"
+          strokeWidth={2.5}
+          markerEnd="url(#ff-dipole-moment-arrowhead)"
+        />
+        <text x={CENTER} y={CENTER - 14} fontSize={12} fill="var(--color-foreground)" textAnchor="middle">
+          p
+        </text>
+
+        <circle cx={plusPoint.x} cy={plusPoint.y} r={CHARGE_RADIUS} fill={PLUS_COLOR} />
+        <text x={plusPoint.x} y={plusPoint.y} fontSize={12} fill="white" textAnchor="middle" dominantBaseline="central">
+          +
+        </text>
+        <circle cx={minusPoint.x} cy={minusPoint.y} r={CHARGE_RADIUS} fill={MINUS_COLOR} />
+        <text x={minusPoint.x} y={minusPoint.y} fontSize={12} fill="white" textAnchor="middle" dominantBaseline="central">
+          −
+        </text>
+
+        {/* Dashed guide lines from the dipole to each observation point. */}
+        <line
+          x1={CENTER}
+          y1={CENTER}
+          x2={axialPoint.x}
+          y2={axialPoint.y}
+          stroke="var(--color-border)"
+          strokeWidth={1}
+          strokeDasharray="4 3"
+        />
+        <line
+          x1={CENTER}
+          y1={CENTER}
+          x2={equatorialPoint.x}
+          y2={equatorialPoint.y}
+          stroke="var(--color-border)"
+          strokeWidth={1}
+          strokeDasharray="4 3"
+        />
+
+        {/* Axial field vector: points along +p (same direction as the dipole moment). */}
+        <line
+          x1={axialPoint.x}
+          y1={axialPoint.y}
+          x2={axialPoint.x + axialArrowLength}
+          y2={axialPoint.y}
+          stroke="var(--color-primary)"
+          strokeWidth={2.5}
+          markerEnd="url(#axial-arrowhead)"
+        />
+        <circle cx={axialPoint.x} cy={axialPoint.y} r={4} fill="var(--color-primary)" />
+        <text x={axialPoint.x} y={axialPoint.y + 18} fontSize={11} fill="var(--color-primary)" textAnchor="middle">
+          Axial point
+        </text>
+
+        {/* Equatorial field vector: points opposite p, i.e. in -x. */}
+        <line
+          x1={equatorialPoint.x}
+          y1={equatorialPoint.y}
+          x2={equatorialPoint.x - equatorialArrowLength}
+          y2={equatorialPoint.y}
+          stroke="#f59e0b"
+          strokeWidth={2.5}
+          markerEnd="url(#equatorial-arrowhead)"
+        />
+        <circle cx={equatorialPoint.x} cy={equatorialPoint.y} r={4} fill="#f59e0b" />
+        <text x={equatorialPoint.x + 60} y={equatorialPoint.y + 4} fontSize={11} fill="#f59e0b" textAnchor="middle">
+          Equatorial point
+        </text>
+      </svg>
+
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">
+          Distance ratio r/d = {ratio.toFixed(1)}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          At the same far distance, the axial field is exactly twice the
+          equatorial field&apos;s magnitude — and they point in opposite
+          directions relative to p: axial points the same way as p,
+          equatorial points opposite. Both fall off as 1/r³ at the same
+          rate, so their 2:1 ratio holds at any distance (try the slider).
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor={sliderId} className="text-xs font-medium">
+          Observation distance ratio r/d
+        </label>
+        <input
+          id={sliderId}
+          type="range"
+          min={1.5}
+          max={5}
+          step={0.1}
+          value={ratio}
+          onChange={(event) => setRatio(Number(event.target.value))}
+          aria-valuetext={`r/d = ${ratio.toFixed(1)}, axial field ${axialMagnitude.toFixed(2)} kp over r cubed, equatorial field ${equatorialMagnitude.toFixed(2)} kp over r cubed`}
+          className="w-full"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="rounded-md bg-muted px-3 py-2">
+          <Equation latex={dipoleMomentEquationLatex} display />
+        </div>
+        <div className="rounded-md bg-muted px-3 py-2">
+          <Equation latex={axialFieldEquationLatex} display />
+        </div>
+        <div className="rounded-md bg-muted px-3 py-2">
+          <Equation latex={equatorialFieldEquationLatex} display />
+        </div>
+      </div>
     </div>
   );
 }

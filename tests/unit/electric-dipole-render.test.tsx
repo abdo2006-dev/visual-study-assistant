@@ -18,9 +18,19 @@ function makeBlock(overrides: Partial<Parameters<typeof visualBlockSchema.parse>
 }
 
 describe("VisualBlockRenderer / electric-dipole", () => {
-  it("renders the template for a known templateId with valid parameters", () => {
+  it("renders the torque-in-field mode by default", () => {
     render(<VisualBlockRenderer block={makeBlock({})} />);
     expect(screen.getByLabelText("Angle theta between p and E")).toBeInTheDocument();
+  });
+
+  it("renders the far-field-comparison mode when requested", () => {
+    render(
+      <VisualBlockRenderer
+        block={makeBlock({ parameters: { mode: "far-field-comparison" } })}
+      />
+    );
+    expect(screen.getByLabelText("Observation distance ratio r/d")).toBeInTheDocument();
+    expect(screen.getByText(/twice the/)).toBeInTheDocument();
   });
 
   it("shows an unsupported-visual fallback when parameters fail validation", () => {

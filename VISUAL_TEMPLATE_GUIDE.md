@@ -92,16 +92,27 @@ Using `radial-charged-sphere` as the worked example:
 ## What the AI does and doesn't control
 
 The AI supplies `templateId` and `parameters` only — either automatically,
-via the visual-planning pass right after lesson generation (see
-AI_PIPELINE.md), or on request, via a chat-driven `add-visual` patch. A new
-template's description also needs adding to the visual-planning prompt
-(`src/lib/ai/gemini/prompts/visualPlanning.ts`) and its params schema to
-`src/lib/schema/templates/templateParamsSchemas.ts`, so both paths can pick
-it. Anything that must be physically/mathematically correct — formulas,
-region boundaries, geometry — belongs in your component or its logic
-module, not in something the AI decides per-lesson. `parameters` should
-describe *configuration* (which variant, what to show/hide, an initial
-value), not facts that could be wrong.
+via the visual-planning pass right after lesson generation, or on request,
+via a chat-driven `add-visual` patch (see AI_PIPELINE.md). Both paths
+share one description of every template,
+`src/lib/ai/gemini/prompts/templateDescriptions.ts` — a new template
+needs an entry added there (what it matches, its exact parameter shape)
+and its params schema added to
+`src/lib/schema/templates/templateParamsSchemas.ts`, so neither path is
+guessing. Anything that must be physically/mathematically correct —
+formulas, region boundaries, geometry — belongs in your component or its
+logic module, not in something the AI decides per-lesson. `parameters`
+should describe *configuration* (which variant, what to show/hide, an
+initial value), not facts that could be wrong.
+
+If a template legitimately serves more than one distinct learning
+objective (different enough that one config knob can't just tune the same
+diagram), give it a `mode` parameter rather than building a second
+near-duplicate template — see `electric-dipole`'s `"torque-in-field"` vs
+`"far-field-comparison"` modes for the pattern: one params schema with a
+`mode` field (defaulting to whichever mode existed first, so old saved
+lessons keep rendering the same way), and the component branching to a
+different sub-view per mode.
 
 ## Accessibility
 

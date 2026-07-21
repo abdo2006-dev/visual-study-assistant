@@ -97,6 +97,31 @@ template's own Zod schema (`toLessonPatch.ts` for chat patches,
 patch or assignment that fails this second validation is dropped, not
 applied — one bad item in a batch doesn't fail the whole operation.
 
+Both prompts describe every template's matching physical/mathematical
+setup and exact parameter shape from one shared constant,
+`TEMPLATE_DESCRIPTIONS` (`src/lib/ai/gemini/prompts/templateDescriptions.ts`)
+— originally only the visual-planning prompt had this level of detail,
+which meant a chat-requested `add-visual` was guessing at parameter
+shapes blind. Adding a template means updating this one file, not two.
+
+## Chat replies aren't proof the patches applied
+
+`modifyLesson`'s `reply` text is written by the model in the same turn as
+its `patches` array, before anything is validated or applied — so a reply
+can describe a change that never actually lands (wrong section id,
+invalid parameters). Two things keep this honest:
+
+- The prompt itself is told never to describe a change that isn't backed
+  by an actual patch in the same response.
+- More importantly, `applyLessonPatches`
+  (`src/lib/lessonPatch/applyLessonPatch.ts`) applies each patch
+  independently rather than all-or-nothing — a `reduce` that threw on the
+  first failure used to discard every other patch in the batch too, so
+  one stale section id could silently zero out an entire response's worth
+  of changes while the reply still claimed success. Now whatever succeeds
+  is saved, and `LessonChatPanel` surfaces exactly which patches failed
+  and why, rather than trusting the model's narration.
+
 ## Keeping requests small
 
 Full `VisualLesson` objects carry a lot the AI doesn't need for chat,
@@ -150,9 +175,13 @@ generation request should never fail *because* visual planning failed.
 
 The prompt (`src/lib/ai/gemini/prompts/visualPlanning.ts`) tells the model,
 per template, what physical/mathematical setup it matches and its
-parameter shape, and instructs it to skip a section rather than force a
-template that doesn't genuinely fit — at most one visual per section, and
-it's fine (expected, even) for many sections to get none.
+parameter shape, and instructs it to skip a section only when nothing
+listed genuinely fits — at most one visual per section, but the model is
+told to lean toward attaching one wherever a template's setup matches
+(cost isn't a concern here; a flash-lite call per lesson is cheap). The
+one hard line stays: never attach a template whose physical/mathematical
+setup doesn't actually match the section, since a wrong-but-present
+visual is worse than none.
 
 ## Usage tracking
 

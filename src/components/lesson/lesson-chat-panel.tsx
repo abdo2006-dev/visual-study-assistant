@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { applyLessonPatches, PatchApplicationError } from "@/lib/lessonPatch/applyLessonPatch";
+import { applyLessonPatches } from "@/lib/lessonPatch/applyLessonPatch";
 import { condenseLessonForChat } from "@/lib/lessonPatch/condenseLesson";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { type LessonPatch, lessonPatchSchema } from "@/lib/schema/patch";
@@ -99,16 +99,30 @@ export function LessonChatPanel({
       }
 
       if (validPatches.length > 0) {
-        const updatedLesson = applyLessonPatches(lesson, validPatches);
-        await saveLesson(updatedLesson);
-        await recordRevision(updatedLesson);
-        onLessonChanged();
+        const { lesson: updatedLesson, failed } = applyLessonPatches(lesson, validPatches);
+        const appliedCount = validPatches.length - failed.length;
+
+        if (appliedCount > 0) {
+          await saveLesson(updatedLesson);
+          await recordRevision(updatedLesson);
+          onLessonChanged();
+        }
+
+        // The reply above is written by the AI before patches are applied,
+        // so it can describe changes that don't actually happen — surface
+        // any failures directly rather than letting that claim go
+        // unchallenged (see applyLessonPatch.ts).
+        if (failed.length > 0) {
+          setError(
+            `${failed.length} of ${validPatches.length} change${validPatches.length === 1 ? "" : "s"} couldn't be applied: ${failed
+              .map((f) => f.error)
+              .join(" ")}`
+          );
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError("Cancelled.");
-      } else if (err instanceof PatchApplicationError) {
-        setError(err.message);
       } else {
         setError(err instanceof Error ? err.message : "Failed to process your message.");
       }

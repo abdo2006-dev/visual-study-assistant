@@ -33,15 +33,28 @@
   split into several lessons (or one, if it's cohesive), reviewed and
   adjustable before each generates independently through the normal
   pipeline — see AI_PIPELINE.md's "Bulk import" section.
+- **Milestone 13** — fixed a real bug: chat-requested visuals could
+  silently fail to appear while the AI's reply claimed success, because
+  `applyLessonPatches` discarded an entire batch if any one patch failed
+  (e.g. a stale section id). Patches now apply independently and failures
+  are surfaced to the user — see AI_PIPELINE.md's "Chat replies aren't
+  proof the patches applied". Also: the chat's `add-visual` prompt now
+  gets the same per-template parameter guidance as automatic visual
+  planning (previously it only had bare template names); visual planning
+  itself is now noticeably more willing to attach a visual per section,
+  since cost isn't a real constraint on the free tier; and
+  `electric-dipole` gained a second mode, `far-field-comparison`, for
+  axial-vs-equatorial field content the original torque-only template
+  didn't cover.
 
 ## Known limitations / deliberately out of scope
 
-- **Visual planning is best-effort, not guaranteed.** The AI is
-  instructed to skip a section rather than force a template that doesn't
-  genuinely fit — many sections (definitions, historical asides) are
-  expected to get no visual. A planning failure (rate limit, timeout)
-  degrades to the old behavior (no visuals) rather than failing lesson
-  generation — see AI_PIPELINE.md.
+- **Visual planning is still best-effort, not guaranteed**, and a
+  planning failure (rate limit, timeout) degrades to no visuals rather
+  than failing lesson generation — see AI_PIPELINE.md. As of Milestone 13
+  it's deliberately biased toward attaching a visual wherever a template
+  plausibly fits, rather than staying conservative — a section still gets
+  skipped only when no template's setup genuinely matches it.
 - **Single AI provider.** `LessonAIProvider` is designed to be swappable,
   but `GeminiProvider` is the only implementation. No UI exists to switch
   models/providers or economy modes — every route defaults to

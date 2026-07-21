@@ -106,7 +106,7 @@ describe("applyLessonPatch", () => {
 
 describe("applyLessonPatches", () => {
   it("applies multiple patches in order and returns a schema-valid lesson", () => {
-    const result = applyLessonPatches(lesson(), [
+    const { lesson: result, failed } = applyLessonPatches(lesson(), [
       { op: "add-prerequisite", prerequisite: "Vectors" },
       {
         op: "replace-explanation",
@@ -114,9 +114,54 @@ describe("applyLessonPatches", () => {
         simplifiedExplanation: "Updated.",
       },
     ]);
+    expect(failed).toEqual([]);
     expect(result.prerequisites).toContain("Vectors");
     expect(
       result.sections.find((s) => s.id === "region-inside")?.simplifiedExplanation
     ).toBe("Updated.");
+  });
+
+  it("applies the patches that succeed and reports the ones that don't, instead of discarding everything", () => {
+    const { lesson: result, failed } = applyLessonPatches(lesson(), [
+      { op: "add-prerequisite", prerequisite: "Vectors" },
+      {
+        op: "replace-explanation",
+        sectionId: "nonexistent-section",
+        simplifiedExplanation: "Updated.",
+      },
+      {
+        op: "replace-explanation",
+        sectionId: "region-inside",
+        simplifiedExplanation: "Still applied.",
+      },
+    ]);
+
+    expect(result.prerequisites).toContain("Vectors");
+    expect(
+      result.sections.find((s) => s.id === "region-inside")?.simplifiedExplanation
+    ).toBe("Still applied.");
+
+    expect(failed).toHaveLength(1);
+    expect(failed[0].patch.op).toBe("replace-explanation");
+    expect(failed[0].error).toMatch(/nonexistent-section/);
+  });
+
+  it("returns the original lesson unchanged and all patches as failed when every patch fails", () => {
+    const original = lesson();
+    const { lesson: result, failed } = applyLessonPatches(original, [
+      {
+        op: "replace-explanation",
+        sectionId: "nonexistent-a",
+        simplifiedExplanation: "x",
+      },
+      {
+        op: "replace-explanation",
+        sectionId: "nonexistent-b",
+        simplifiedExplanation: "y",
+      },
+    ]);
+
+    expect(failed).toHaveLength(2);
+    expect(result.sections).toEqual(original.sections);
   });
 });

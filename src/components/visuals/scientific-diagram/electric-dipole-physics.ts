@@ -1,3 +1,26 @@
+/**
+ * Far-field axial magnitude, normalized so kp = 1: E_axial(r) = 2/r^3,
+ * pointing in the same direction as the dipole moment p. r is the
+ * distance ratio (observation distance / charge separation) — this
+ * approximation only holds when r is large relative to the separation,
+ * which is why the UI restricts it to a "far" range.
+ */
+export function axialFieldMagnitudeNormalized(distanceRatio: number): number {
+  return 2 / distanceRatio ** 3;
+}
+
+/**
+ * Far-field equatorial (perpendicular-bisector) magnitude, normalized so
+ * kp = 1: E_equatorial(r) = 1/r^3 — half the axial magnitude at the same
+ * distance, and pointing opposite to p rather than along it.
+ */
+export function equatorialFieldMagnitudeNormalized(distanceRatio: number): number {
+  return 1 / distanceRatio ** 3;
+}
+
+export const axialFieldEquationLatex = "E_{axial} = \\dfrac{2kp}{r^3}";
+export const equatorialFieldEquationLatex = "E_{equatorial} = \\dfrac{kp}{r^3}";
+
 /** Torque magnitude normalized so pE = 1: tau/pE = sin(theta). */
 export function torqueMagnitudeNormalized(angleDegrees: number): number {
   return Math.sin((angleDegrees * Math.PI) / 180);
