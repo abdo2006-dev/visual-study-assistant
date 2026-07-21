@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
 import { visualLessonSchema } from "@/lib/schema/lesson";
+import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 
 import { ScreenshotUploader } from "./screenshot-uploader";
@@ -57,6 +58,7 @@ export function NewLessonForm() {
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to generate the lesson.");
       }
+      recordApiUsageFromResponseBody("lesson-plan", body);
 
       const lesson = visualLessonSchema.parse(body);
       if (screenshotDataUrls) {

@@ -4,6 +4,7 @@ import type { Content, GoogleGenAI, Part } from "@google/genai";
 import type { z } from "zod";
 
 import { parseStructuredJson } from "@/lib/ai/gemini/jsonRepair";
+import { recordGeminiUsage } from "@/lib/ai/usageContext";
 
 export class AiGenerationError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -27,6 +28,17 @@ async function callModel(
       responseSchema,
       abortSignal: signal,
     },
+  });
+
+  // Recorded even if the response text turns out empty/invalid below — a
+  // rejected or empty response still consumed real quota against the model.
+  const usage = response.usageMetadata;
+  recordGeminiUsage({
+    model,
+    promptTokens: usage?.promptTokenCount ?? 0,
+    candidatesTokens: usage?.candidatesTokenCount ?? 0,
+    thoughtsTokens: usage?.thoughtsTokenCount ?? 0,
+    totalTokens: usage?.totalTokenCount ?? 0,
   });
 
   const text = response.text;

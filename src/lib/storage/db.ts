@@ -20,6 +20,18 @@ export interface LessonConversation {
   messages: ChatMessage[];
 }
 
+export interface ApiUsageRecord {
+  id: string;
+  /** ISO datetime of when the client recorded this call (approximately when the response arrived). */
+  timestamp: string;
+  operation: "lesson-plan" | "extract" | "lesson-patch" | "verify-lesson";
+  model: string;
+  promptTokens: number;
+  candidatesTokens: number;
+  thoughtsTokens: number;
+  totalTokens: number;
+}
+
 interface VisualStudyAssistantDB extends DBSchema {
   lessons: {
     key: string;
@@ -34,10 +46,15 @@ interface VisualStudyAssistantDB extends DBSchema {
     key: string;
     value: LessonConversation;
   };
+  apiUsage: {
+    key: string;
+    value: ApiUsageRecord;
+    indexes: { "by-timestamp": string };
+  };
 }
 
 const DB_NAME = "visual-study-assistant";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<VisualStudyAssistantDB>> | null = null;
 
@@ -60,6 +77,10 @@ export function getDb(): Promise<IDBPDatabase<VisualStudyAssistantDB>> {
         }
         if (!db.objectStoreNames.contains("conversations")) {
           db.createObjectStore("conversations", { keyPath: "lessonId" });
+        }
+        if (!db.objectStoreNames.contains("apiUsage")) {
+          const store = db.createObjectStore("apiUsage", { keyPath: "id" });
+          store.createIndex("by-timestamp", "timestamp");
         }
       },
     });

@@ -122,3 +122,35 @@ per template, what physical/mathematical setup it matches and its
 parameter shape, and instructs it to skip a section rather than force a
 template that doesn't genuinely fit — at most one visual per section, and
 it's fine (expected, even) for many sections to get none.
+
+## Usage tracking
+
+This app has no server-side database (see SECURITY.md), so real per-call
+token/request counts have to travel from the server (where Gemini calls
+happen) to the browser (where they're logged) on the same response that
+already carries the actual result — there's no separate telemetry channel.
+
+- `generateWithRepair` records each real Gemini response's
+  `usageMetadata` (prompt/candidates/thoughts/total token counts) via
+  `recordGeminiUsage` (`src/lib/ai/usageContext.ts`), an
+  `AsyncLocalStorage`-backed collector scoped to one request — chosen so
+  usage capture didn't require threading a new return value through every
+  provider method, service function, and route (5 operations deep in
+  places).
+- Each of the four routes wraps its work in `jsonWithUsage`
+  (`src/lib/ai/jsonWithUsage.ts`), which runs it inside
+  `withUsageTracking` and spreads the collected calls onto the JSON
+  response as `apiUsage: GeminiCallUsage[]`.
+- The client pulls `body.apiUsage` out of the response **before** running
+  it through the route's own Zod schema (which would otherwise silently
+  strip the unknown field) and hands it to `recordApiUsageFromResponseBody`
+  (`src/lib/storage/apiUsageRepository.ts`), which writes it to the
+  `apiUsage` IndexedDB store. Storage failure is caught and logged, never
+  thrown — this is a monitoring feature, not something that should ever
+  block lesson generation.
+- The Settings page (`ApiUsageDashboard`) reads that store and shows
+  real request/token counts per model over a rolling 24h window, next to
+  a clearly-caveated reference table of publicly reported free-tier
+  limits — see that component for why the reference numbers are presented
+  as approximate rather than an authoritative "remaining quota" figure
+  (Google doesn't expose one via API).

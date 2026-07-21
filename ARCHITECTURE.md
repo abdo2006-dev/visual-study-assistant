@@ -93,7 +93,7 @@ without each component fetching independently and drifting out of sync.
 
 ## Storage
 
-Three IndexedDB object stores (`src/lib/storage/db.ts`), each with its own
+Four IndexedDB object stores (`src/lib/storage/db.ts`), each with its own
 thin repository module:
 
 - **lessons** (keyPath `id`) — the actual `VisualLesson` documents.
@@ -102,6 +102,11 @@ thin repository module:
   (`revisionRepository.ts`).
 - **conversations** (keyPath `lessonId`) — chat message history per lesson
   (`conversationRepository.ts`).
+- **apiUsage** (keyPath `id`, indexed by `timestamp`) — one entry per real
+  Gemini call this app has made (model, token counts), logged client-side
+  from each AI route's response and pruned past 90 days
+  (`apiUsageRepository.ts`) — see AI_PIPELINE.md for how the server gets
+  that data to the client in the first place.
 
 Screenshots are stored inline as base64 data URLs on
 `lesson.source.originalImages` (one per screenshot, in upload order)

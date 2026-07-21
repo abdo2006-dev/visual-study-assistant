@@ -10,6 +10,7 @@ import { applyLessonPatches, PatchApplicationError } from "@/lib/lessonPatch/app
 import { condenseLessonForChat } from "@/lib/lessonPatch/condenseLesson";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { type LessonPatch, lessonPatchSchema } from "@/lib/schema/patch";
+import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { appendMessage, getConversation } from "@/lib/storage/conversationRepository";
 import type { ChatMessage } from "@/lib/storage/db";
 import { saveLesson } from "@/lib/storage/lessonRepository";
@@ -80,6 +81,7 @@ export function LessonChatPanel({
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to process your message.");
       }
+      recordApiUsageFromResponseBody("lesson-patch", body);
 
       const assistantMessage: ChatMessage = {
         role: "assistant",

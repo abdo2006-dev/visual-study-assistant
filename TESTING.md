@@ -54,8 +54,13 @@ new test's pass/fail depend on real network access.
   (including the "a new edit after undo discards the redo-able future"
   case), `conversationRepository`, export/import round-trips.
 - **AI provider logic**: JSON-repair retry behavior, the `parametersJson`
-  expansion (`toLessonPatch`), per-operation prompt construction — all with
-  a mocked SDK.
+  expansion (`toLessonPatch`, `toVisualBlockAssignment`), per-operation
+  prompt construction — all with a mocked SDK.
+- **Usage tracking**: `usageContext`'s per-request isolation (including
+  two concurrent trackers staying separate), `generateWithRepair` recording
+  real and repair-retry calls, `jsonWithUsage` attaching `apiUsage` to a
+  response, and `apiUsageRepository`'s record/query/prune behavior against
+  `fake-indexeddb`.
 - **Route handlers**: called directly as functions (`POST(request)`), no
   real Next.js server needed — malformed JSON, missing fields, and every
   mapped error status (400/429/500/502/504) per route.

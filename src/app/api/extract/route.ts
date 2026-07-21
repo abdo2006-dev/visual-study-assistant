@@ -4,6 +4,7 @@ import { z } from "zod";
 import { economyModeSchema } from "@/lib/ai/config";
 import { extractLessonSource } from "@/lib/ai/extractionService";
 import { GeminiProvider } from "@/lib/ai/gemini/geminiProvider";
+import { jsonWithUsage } from "@/lib/ai/jsonWithUsage";
 import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
 
 export const runtime = "nodejs";
@@ -42,12 +43,13 @@ export async function POST(request: Request) {
   const signal = AbortSignal.any([request.signal, timeoutController.signal]);
 
   try {
-    const extracted = await extractLessonSource(new GeminiProvider(), {
-      images: parsedBody.data.images,
-      mode: parsedBody.data.mode,
-      signal,
-    });
-    return NextResponse.json(extracted, { status: 200 });
+    return await jsonWithUsage(() =>
+      extractLessonSource(new GeminiProvider(), {
+        images: parsedBody.data.images,
+        mode: parsedBody.data.mode,
+        signal,
+      })
+    );
   } catch (err) {
     return mapAiErrorToResponse(err, {
       timedOut: timeoutController.signal.aborted,

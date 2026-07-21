@@ -23,6 +23,11 @@
 - **Milestone 10** — multiple screenshots per lesson: `ScreenshotUploader`
   and `/api/extract` now take an array of images (up to 6) and combine
   them into one extraction in the given order.
+- **Milestone 11** — local API usage tracking: every real Gemini call's
+  token/request counts are logged to IndexedDB and shown on the Settings
+  page, next to a clearly-caveated free-tier reference table (see
+  AI_PIPELINE.md's "Usage tracking" section for how the numbers get from
+  server to client with no server-side database involved).
 
 ## Known limitations / deliberately out of scope
 
@@ -43,8 +48,15 @@
 - **No automated visual-regression testing.** Mobile layout correctness
   was checked manually in-browser (Milestone 8), not via a screenshot-diff
   suite.
-- **Settings page is a stub.** No UI yet for economy mode, theme
-  preferences beyond dark/light, or provider status.
+- **No UI yet for switching economy mode or provider status** on the
+  Settings page (usage tracking is there now — see Milestone 11 — but
+  every route still defaults to `"economical"` with no way to change it
+  from the UI).
+- **The free-tier reference numbers on the usage dashboard are
+  approximate, not authoritative.** Google doesn't publish exact
+  free-tier limits on its own rate-limits page or expose a "remaining
+  quota" API — see `ApiUsageDashboard`'s own caveats and the link to
+  Google AI Studio's live dashboard for the real numbers.
 - **Rate limiting is per-process**, not distributed — see the Vercel
   caveat in SECURITY.md.
 - **The Cloudflare deployment option wasn't pursued.** The app is
@@ -68,6 +80,6 @@ Roughly in order of likely value:
    general-purpose diagrams; more subject-specific templates (e.g. a
    titration/pH curve for chemistry, an energy-level diagram, a
    free-body diagram) would broaden coverage further.
-3. **Settings UI** for economy mode and provider status, per
+3. **Settings UI** for switching economy mode and provider status, per
    IMPLEMENTATION_PLAN.md section 18.
 4. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.

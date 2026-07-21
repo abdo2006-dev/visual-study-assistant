@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { compressImage, dataUrlToBase64 } from "@/lib/upload/compressImage";
 import { validateImageFile } from "@/lib/upload/imageValidation";
 
@@ -122,6 +123,7 @@ export function ScreenshotUploader({
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to extract text from the image.");
       }
+      recordApiUsageFromResponseBody("extract", body);
 
       onExtracted(
         body.markdown,

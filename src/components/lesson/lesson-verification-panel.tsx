@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { condenseLessonForVerification } from "@/lib/lessonPatch/condenseLessonForVerification";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { type LessonVerification, lessonVerificationSchema } from "@/lib/schema/verification";
+import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 
 export function LessonVerificationPanel({ lesson }: { lesson: VisualLesson }) {
   const [result, setResult] = useState<LessonVerification | null>(null);
@@ -25,6 +26,7 @@ export function LessonVerificationPanel({ lesson }: { lesson: VisualLesson }) {
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to check this lesson.");
       }
+      recordApiUsageFromResponseBody("verify-lesson", body);
       setResult(lessonVerificationSchema.parse(body));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to check this lesson.");

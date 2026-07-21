@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { economyModeSchema } from "@/lib/ai/config";
 import { GeminiProvider } from "@/lib/ai/gemini/geminiProvider";
+import { jsonWithUsage } from "@/lib/ai/jsonWithUsage";
 import { generateLessonPlan } from "@/lib/ai/lessonPlanService";
 import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
 
@@ -37,12 +38,13 @@ export async function POST(request: Request) {
   const signal = AbortSignal.any([request.signal, timeoutController.signal]);
 
   try {
-    const lesson = await generateLessonPlan(new GeminiProvider(), {
-      sourceText: parsedBody.data.sourceText,
-      mode: parsedBody.data.mode,
-      signal,
-    });
-    return NextResponse.json(lesson, { status: 200 });
+    return await jsonWithUsage(() =>
+      generateLessonPlan(new GeminiProvider(), {
+        sourceText: parsedBody.data.sourceText,
+        mode: parsedBody.data.mode,
+        signal,
+      })
+    );
   } catch (err) {
     return mapAiErrorToResponse(err, {
       timedOut: timeoutController.signal.aborted,
