@@ -62,17 +62,17 @@ describe("GeminiProvider.createLessonPlan", () => {
     expect(generateContent).toHaveBeenCalledTimes(2);
   });
 
-  it("throws LessonPlanGenerationError when both attempts are invalid", async () => {
+  it("throws AiGenerationError when both attempts are invalid", async () => {
     generateContent
       .mockResolvedValueOnce({ text: "not valid json" })
       .mockResolvedValueOnce({ text: "still not valid" });
 
-    const { GeminiProvider, LessonPlanGenerationError } = await import(
+    const { GeminiProvider, AiGenerationError } = await import(
       "@/lib/ai/gemini/geminiProvider"
     );
     await expect(
       new GeminiProvider().createLessonPlan({ sourceText: "some text" })
-    ).rejects.toThrow(LessonPlanGenerationError);
+    ).rejects.toThrow(AiGenerationError);
     expect(generateContent).toHaveBeenCalledTimes(2);
   });
 

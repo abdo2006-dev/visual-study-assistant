@@ -1,11 +1,12 @@
 import "server-only";
 
-import { checkRateLimit } from "@/lib/ai/rateLimit";
+import { InvalidAiRequestError } from "@/lib/ai/errors";
 import type { CreateLessonPlanInput, LessonAIProvider } from "@/lib/ai/provider";
+import { checkRateLimit } from "@/lib/ai/rateLimit";
 import { hashContent, withCache } from "@/lib/cache/requestCache";
 import type { VisualLesson } from "@/lib/schema/lesson";
 
-export class InvalidLessonPlanRequestError extends Error {
+export class InvalidLessonPlanRequestError extends InvalidAiRequestError {
   constructor(message: string) {
     super(message);
     this.name = "InvalidLessonPlanRequestError";

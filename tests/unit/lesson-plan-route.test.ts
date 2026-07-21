@@ -63,11 +63,9 @@ describe("POST /api/lesson-plan", () => {
   });
 
   it("returns 502 when the provider fails to produce a valid lesson", async () => {
-    const { LessonPlanGenerationError } = await import(
-      "@/lib/ai/gemini/geminiProvider"
-    );
+    const { AiGenerationError } = await import("@/lib/ai/gemini/geminiProvider");
     createLessonPlan.mockRejectedValueOnce(
-      new LessonPlanGenerationError("model returned garbage")
+      new AiGenerationError("model returned garbage")
     );
 
     const { POST } = await import("@/app/api/lesson-plan/route");

@@ -7,8 +7,9 @@ plan, not freeform AI-generated images.
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full
 architecture, schema design, and milestone plan. This README covers running
-what currently exists (through Milestone 3: app shell, local library,
-text-to-lesson generation via Gemini).
+what currently exists (through Milestone 4: app shell, local library,
+text-to-lesson generation, and screenshot upload/extraction, all via
+Gemini).
 
 ## Prerequisites
 
@@ -26,8 +27,8 @@ cp .env.example .env.local
 ```
 
 `GEMINI_API_KEY` is only read server-side (see `src/lib/ai/config.ts`) and is
-never bundled into client code. Everything except "Generate lesson" on the
-New Lesson page works without it.
+never bundled into client code. Everything except "Generate lesson" and
+"Extract text" (screenshot upload) on the New Lesson page works without it.
 
 ## Development
 

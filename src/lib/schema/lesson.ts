@@ -9,6 +9,8 @@ export const LESSON_SCHEMA_VERSION = 1;
 export const lessonSourceSchema = z.object({
   kind: z.enum(["pasted-text", "screenshot", "mock"]),
   originalText: z.string().optional(),
+  /** Data URL of the (already compressed) screenshot, when kind is "screenshot". */
+  originalImage: z.string().optional(),
 });
 
 export const importantTermSchema = z.object({

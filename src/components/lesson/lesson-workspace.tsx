@@ -75,6 +75,20 @@ export function LessonWorkspace({ id }: { id: string }) {
         </div>
       </div>
 
+      {lesson.source.kind === "screenshot" && lesson.source.originalImage && (
+        <details className="rounded-md border border-border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Original screenshot
+          </summary>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lesson.source.originalImage}
+            alt="Original uploaded screenshot"
+            className="mt-3 max-h-96 rounded-md border border-border object-contain"
+          />
+        </details>
+      )}
+
       {lesson.learningObjectives.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold">Learning objectives</h2>

@@ -8,13 +8,31 @@ import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
 import { visualLessonSchema } from "@/lib/schema/lesson";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 
+import { ScreenshotUploader } from "./screenshot-uploader";
+
 export function NewLessonForm() {
   const router = useRouter();
+  const [entryMode, setEntryMode] = useState<"text" | "upload">("text");
   const [sourceText, setSourceText] = useState("");
+  const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exampleLoading, setExampleLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  function handleSourceTextChange(value: string) {
+    setSourceText(value);
+    // A manual edit means the text is no longer purely what was extracted
+    // from the screenshot, so stop tagging the eventual lesson as one.
+    setScreenshotDataUrl(null);
+  }
+
+  function handleExtracted(markdown: string, imageDataUrl: string) {
+    setSourceText(markdown);
+    setScreenshotDataUrl(imageDataUrl);
+    setEntryMode("text");
+    setError(null);
+  }
 
   async function handleGenerate() {
     if (!sourceText.trim()) {
@@ -41,6 +59,13 @@ export function NewLessonForm() {
       }
 
       const lesson = visualLessonSchema.parse(body);
+      if (screenshotDataUrl) {
+        lesson.source = {
+          kind: "screenshot",
+          originalText: sourceText,
+          originalImage: screenshotDataUrl,
+        };
+      }
       await saveLesson(lesson);
       router.push(`/lessons/${lesson.id}`);
     } catch (err) {
@@ -76,36 +101,57 @@ export function NewLessonForm() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">New lesson</h1>
         <p className="text-sm text-muted-foreground">
-          Paste an explanation of something you&apos;re studying. The AI
-          turns it into sections with a simplified explanation and any
-          equations it finds — interactive visuals for each section arrive
-          in Milestone 5.
+          Paste an explanation, or upload a screenshot to extract its text.
+          The AI turns it into sections with a simplified explanation and
+          any equations it finds — interactive visuals for each section
+          arrive in Milestone 5.
         </p>
       </div>
 
-      <textarea
-        value={sourceText}
-        onChange={(event) => setSourceText(event.target.value)}
-        disabled={generating}
-        placeholder="Paste a text explanation here..."
-        rows={8}
-        className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
-      />
+      {entryMode === "upload" ? (
+        <div className="flex flex-col gap-3">
+          <ScreenshotUploader onExtracted={handleExtracted} />
+          <Button
+            variant="ghost"
+            className="self-start"
+            onClick={() => setEntryMode("text")}
+          >
+            Back to pasting text
+          </Button>
+        </div>
+      ) : (
+        <>
+          <textarea
+            value={sourceText}
+            onChange={(event) => handleSourceTextChange(event.target.value)}
+            disabled={generating}
+            placeholder="Paste a text explanation here..."
+            rows={8}
+            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          {screenshotDataUrl && (
+            <p className="text-xs text-muted-foreground">
+              Text extracted from your screenshot — edit it above before
+              generating if needed.
+            </p>
+          )}
 
-      <div className="flex items-center gap-3">
-        <Button onClick={handleGenerate} disabled={generating}>
-          {generating ? "Generating..." : "Generate lesson"}
-        </Button>
-        {generating ? (
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-        ) : (
-          <Button disabled variant="outline">
-            Upload screenshot
-          </Button>
-        )}
-      </div>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? "Generating..." : "Generate lesson"}
+            </Button>
+            {generating ? (
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => setEntryMode("upload")}>
+                Upload screenshot
+              </Button>
+            )}
+          </div>
+        </>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

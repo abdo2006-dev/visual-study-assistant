@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { economyModeSchema } from "@/lib/ai/config";
+import { extractLessonSource } from "@/lib/ai/extractionService";
 import { GeminiProvider } from "@/lib/ai/gemini/geminiProvider";
-import { generateLessonPlan } from "@/lib/ai/lessonPlanService";
 import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
 
 export const runtime = "nodejs";
 
 // Overridable so tests can exercise the timeout path without waiting 60s.
-const TIMEOUT_MS = Number(process.env.LESSON_PLAN_TIMEOUT_MS) || 60_000;
+const TIMEOUT_MS = Number(process.env.EXTRACT_TIMEOUT_MS) || 60_000;
 
 const requestBodySchema = z.object({
-  sourceText: z.string(),
+  imageBase64: z.string(),
+  mimeType: z.string(),
   mode: economyModeSchema.optional(),
 });
 
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   const parsedBody = requestBodySchema.safeParse(body);
   if (!parsedBody.success) {
     return NextResponse.json(
-      { error: "Expected { sourceText: string, mode?: string }." },
+      { error: "Expected { imageBase64: string, mimeType: string, mode?: string }." },
       { status: 400 }
     );
   }
@@ -37,16 +38,17 @@ export async function POST(request: Request) {
   const signal = AbortSignal.any([request.signal, timeoutController.signal]);
 
   try {
-    const lesson = await generateLessonPlan(new GeminiProvider(), {
-      sourceText: parsedBody.data.sourceText,
+    const extracted = await extractLessonSource(new GeminiProvider(), {
+      imageBase64: parsedBody.data.imageBase64,
+      mimeType: parsedBody.data.mimeType,
       mode: parsedBody.data.mode,
       signal,
     });
-    return NextResponse.json(lesson, { status: 200 });
+    return NextResponse.json(extracted, { status: 200 });
   } catch (err) {
     return mapAiErrorToResponse(err, {
       timedOut: timeoutController.signal.aborted,
-      logPrefix: "[lesson-plan]",
+      logPrefix: "[extract]",
     });
   } finally {
     clearTimeout(timeout);
