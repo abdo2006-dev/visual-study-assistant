@@ -7,7 +7,8 @@ plan, not freeform AI-generated images.
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full
 architecture, schema design, and milestone plan. This README covers running
-what currently exists (Milestone 1: app shell, theming, tooling).
+what currently exists (through Milestone 3: app shell, local library,
+text-to-lesson generation via Gemini).
 
 ## Prerequisites
 
@@ -25,8 +26,8 @@ cp .env.example .env.local
 ```
 
 `GEMINI_API_KEY` is only read server-side (see `src/lib/ai/config.ts`) and is
-never bundled into client code. It is not required until AI features land
-in Milestone 3 — the app runs fully without it today.
+never bundled into client code. Everything except "Generate lesson" on the
+New Lesson page works without it.
 
 ## Development
 
@@ -44,9 +45,13 @@ npm run test:watch  # unit tests, watch mode
 npm run test:e2e    # end-to-end tests (Playwright; builds + starts the app first)
 ```
 
-No test depends on a real Gemini API call — the mocked-AI-response approach
-described in `IMPLEMENTATION_PLAN.md` / `TESTING.md` (added in a later
-milestone) keeps the suite free to run.
+No ordinary test depends on a real Gemini API call — the Gemini SDK and
+`fetch` calls are mocked throughout. There's one optional live smoke test,
+skipped unless you opt in:
+
+```bash
+RUN_LIVE_GEMINI_TEST=1 npx vitest run tests/unit/gemini-live-smoke.test.ts
+```
 
 If Playwright reports a missing browser binary, run:
 
@@ -76,8 +81,12 @@ npm run lint
 - **Playwright can't find a browser**: run
   `npx playwright install chromium`.
 - **A route errors with a missing-API-key message**: expected until you set
-  `GEMINI_API_KEY` in `.env.local` — only AI-backed routes (Milestone 3+)
-  need it.
+  `GEMINI_API_KEY` in `.env.local` — only `/api/lesson-plan` needs it.
+- **Gemini errors with "model ... is no longer available to new users"**:
+  Google occasionally sunsets specific dated model names. `src/lib/ai/config.ts`
+  uses the rolling `-latest` aliases (`gemini-flash-latest`, etc.) specifically
+  to avoid this, but if Google retires an alias too, update the three model
+  names there — nowhere else in the codebase references a model name.
 
 ## Deployment
 

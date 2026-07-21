@@ -1,26 +1,73 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
+import { visualLessonSchema } from "@/lib/schema/lesson";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 
 export function NewLessonForm() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [sourceText, setSourceText] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exampleLoading, setExampleLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  async function handleGenerate() {
+    if (!sourceText.trim()) {
+      setError("Paste some text before generating a lesson.");
+      return;
+    }
+
+    setGenerating(true);
+    setError(null);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const response = await fetch("/api/lesson-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceText }),
+        signal: controller.signal,
+      });
+
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to generate the lesson.");
+      }
+
+      const lesson = visualLessonSchema.parse(body);
+      await saveLesson(lesson);
+      router.push(`/lessons/${lesson.id}`);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation cancelled.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to generate the lesson.");
+      }
+    } finally {
+      setGenerating(false);
+      abortControllerRef.current = null;
+    }
+  }
+
+  function handleCancel() {
+    abortControllerRef.current?.abort();
+  }
 
   async function loadExampleLesson() {
-    setLoading(true);
+    setExampleLoading(true);
     setError(null);
     try {
       const lesson = await saveLesson(createChargedSphereMockLesson());
       router.push(`/lessons/${lesson.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create lesson.");
-      setLoading(false);
+      setExampleLoading(false);
     }
   }
 
@@ -29,37 +76,53 @@ export function NewLessonForm() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">New lesson</h1>
         <p className="text-sm text-muted-foreground">
-          Paste an explanation or upload a screenshot of educational
-          material. The AI pipeline that turns this into an interactive
-          visual lesson lands in Milestone 3.
+          Paste an explanation of something you&apos;re studying. The AI
+          turns it into sections with a simplified explanation and any
+          equations it finds — interactive visuals for each section arrive
+          in Milestone 5.
         </p>
       </div>
 
       <textarea
-        disabled
+        value={sourceText}
+        onChange={(event) => setSourceText(event.target.value)}
+        disabled={generating}
         placeholder="Paste a text explanation here..."
         rows={8}
         className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
       />
 
       <div className="flex items-center gap-3">
-        <Button disabled>Generate lesson</Button>
-        <Button disabled variant="outline">
-          Upload screenshot
+        <Button onClick={handleGenerate} disabled={generating}>
+          {generating ? "Generating..." : "Generate lesson"}
         </Button>
+        {generating ? (
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+        ) : (
+          <Button disabled variant="outline">
+            Upload screenshot
+          </Button>
+        )}
       </div>
 
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
       <div className="rounded-md border border-dashed border-border p-4">
-        <p className="text-sm font-medium">Try the local library now</p>
+        <p className="text-sm font-medium">Try the local library</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          AI generation isn&apos;t wired up yet, but you can load a
-          hand-written example lesson to try saving, reopening and
-          exporting a lesson.
+          Load a hand-written example lesson without calling the AI, to try
+          saving, reopening and exporting a lesson.
         </p>
-        <Button className="mt-3" onClick={loadExampleLesson} disabled={loading}>
-          {loading ? "Loading..." : "Load example lesson"}
+        <Button
+          className="mt-3"
+          variant="outline"
+          onClick={loadExampleLesson}
+          disabled={exampleLoading}
+        >
+          {exampleLoading ? "Loading..." : "Load example lesson"}
         </Button>
-        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
       </div>
     </div>
   );

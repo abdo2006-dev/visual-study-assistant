@@ -1,5 +1,7 @@
 import "server-only";
 
+import { z } from "zod";
+
 /**
  * Central place for AI model configuration. Route handlers and provider
  * implementations should import from here rather than referencing model
@@ -7,12 +9,17 @@ import "server-only";
  * one place (see IMPLEMENTATION_PLAN.md, Risks section).
  */
 
-export type EconomyMode = "economical" | "balanced" | "highest-quality";
+export const economyModeSchema = z.enum(["economical", "balanced", "highest-quality"]);
 
+export type EconomyMode = z.infer<typeof economyModeSchema>;
+
+// Google's own rolling aliases rather than a dated model name, so this
+// doesn't go stale as specific model versions are sunset (see
+// IMPLEMENTATION_PLAN.md, Risks section).
 export const geminiModels: Record<EconomyMode, string> = {
-  economical: "gemini-2.5-flash-lite",
-  balanced: "gemini-2.5-flash",
-  "highest-quality": "gemini-2.5-pro",
+  economical: "gemini-flash-lite-latest",
+  balanced: "gemini-flash-latest",
+  "highest-quality": "gemini-pro-latest",
 };
 
 export class MissingApiKeyError extends Error {
