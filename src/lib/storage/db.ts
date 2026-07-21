@@ -24,7 +24,7 @@ export interface ApiUsageRecord {
   id: string;
   /** ISO datetime of when the client recorded this call (approximately when the response arrived). */
   timestamp: string;
-  operation: "lesson-plan" | "extract" | "lesson-patch" | "verify-lesson";
+  operation: "lesson-plan" | "extract" | "lesson-patch" | "verify-lesson" | "bulk-import-plan";
   model: string;
   promptTokens: number;
   candidatesTokens: number;

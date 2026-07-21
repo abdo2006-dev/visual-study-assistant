@@ -22,6 +22,10 @@ test("sidebar navigation reaches the library, settings and import/export pages",
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
 
+  await page.getByRole("link", { name: "Bulk import" }).click();
+  await expect(page).toHaveURL(/\/bulk-import$/);
+  await expect(page.getByRole("heading", { name: "Bulk import" })).toBeVisible();
+
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();

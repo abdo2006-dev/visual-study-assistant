@@ -33,6 +33,14 @@ test("Settings page has no automatically detectable accessibility violations", a
   expect(results.violations).toEqual([]);
 });
 
+test("Bulk import page has no automatically detectable accessibility violations", async ({
+  page,
+}) => {
+  await page.goto("/bulk-import");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test("a lesson workspace with the charged-sphere visual has no automatically detectable accessibility violations", async ({
   page,
 }) => {

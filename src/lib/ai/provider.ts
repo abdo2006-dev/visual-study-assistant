@@ -2,6 +2,7 @@ import type { EconomyMode } from "@/lib/ai/config";
 import type { CondensedLesson } from "@/lib/lessonPatch/condenseLesson";
 import type { VerificationLesson } from "@/lib/lessonPatch/condenseLessonForVerification";
 import type { VisualPlanningLesson } from "@/lib/lessonPatch/condenseLessonForVisualPlanning";
+import type { BulkImportPlan } from "@/lib/schema/bulkImportPlan";
 import type { ExtractedSource } from "@/lib/schema/extraction";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import type { LessonPatch } from "@/lib/schema/patch";
@@ -66,6 +67,12 @@ export interface VisualPlan {
   assignments: VisualPlanAssignment[];
 }
 
+export interface PlanBulkImportInput {
+  sourceText: string;
+  mode?: EconomyMode;
+  signal?: AbortSignal;
+}
+
 /**
  * The app depends only on this interface for AI operations, never on
  * Gemini-specific types (see IMPLEMENTATION_PLAN.md section 6).
@@ -76,4 +83,5 @@ export interface LessonAIProvider {
   modifyLesson(input: ModifyLessonInput): Promise<ModifyLessonResult>;
   verifyLesson(input: VerifyLessonInput): Promise<LessonVerification>;
   planVisuals(input: PlanVisualsInput): Promise<VisualPlan>;
+  planBulkImport(input: PlanBulkImportInput): Promise<BulkImportPlan>;
 }

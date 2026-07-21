@@ -5,6 +5,11 @@ import { getModelFor } from "@/lib/ai/config";
 import { getGeminiClient } from "@/lib/ai/gemini/client";
 import { AiGenerationError, generateWithRepair } from "@/lib/ai/gemini/generateWithRepair";
 import {
+  aiBulkImportPlanSchema,
+  buildBulkImportPlanPrompt,
+  bulkImportPlanResponseSchema,
+} from "@/lib/ai/gemini/prompts/bulkImportPlan";
+import {
   buildExtractionParts,
   extractionResponseSchema,
 } from "@/lib/ai/gemini/prompts/extraction";
@@ -36,11 +41,13 @@ import type {
   LessonAIProvider,
   ModifyLessonInput,
   ModifyLessonResult,
+  PlanBulkImportInput,
   PlanVisualsInput,
   VerifyLessonInput,
   VisualPlan,
   VisualPlanAssignment,
 } from "@/lib/ai/provider";
+import type { BulkImportPlan } from "@/lib/schema/bulkImportPlan";
 import { extractedSourceSchema } from "@/lib/schema/extraction";
 import type { ExtractedSource } from "@/lib/schema/extraction";
 import type { VisualLesson } from "@/lib/schema/lesson";
@@ -156,5 +163,23 @@ export class GeminiProvider implements LessonAIProvider {
       .filter((assignment): assignment is VisualPlanAssignment => assignment !== null);
 
     return { assignments };
+  }
+
+  async planBulkImport({
+    sourceText,
+    mode = "economical",
+    signal,
+  }: PlanBulkImportInput): Promise<BulkImportPlan> {
+    const client = getGeminiClient();
+    const model = getModelFor(mode);
+
+    return generateWithRepair({
+      client,
+      model,
+      schema: aiBulkImportPlanSchema,
+      responseSchema: bulkImportPlanResponseSchema,
+      initialParts: [{ text: buildBulkImportPlanPrompt(sourceText) }],
+      signal,
+    });
   }
 }

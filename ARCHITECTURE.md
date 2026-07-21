@@ -11,15 +11,16 @@ Gemini, so the API key never reaches the client.
 Browser                                  Server (Next.js Route Handlers)
 ┌─────────────────────────────┐          ┌───────────────────────────────┐
 │ React UI                     │  fetch   │ /api/lesson-plan               │
-│  - New Lesson / Library /    │ ───────▶ │ /api/extract                   │
-│    Lesson workspace / Chat   │          │ /api/lesson-patch              │
-│                               │ ◀─────── │ /api/verify-lesson             │
-│ IndexedDB (idb)               │  JSON    │   ↓                            │
+│  - New Lesson / Bulk import /│ ───────▶ │ /api/extract                   │
+│    Library / Lesson workspace/│          │ /api/lesson-patch              │
+│    Chat / Settings           │ ◀─────── │ /api/verify-lesson             │
+│                               │  JSON    │ /api/bulk-import-plan          │
+│ IndexedDB (idb)               │          │   ↓                            │
 │  - lessons                    │          │ *Service (validate, rate-limit,│
 │  - revisions (undo/redo)      │          │  cache) → GeminiProvider       │
 │  - conversations              │          │   ↓                            │
-└─────────────────────────────┘          │ @google/genai → Gemini API      │
-                                          └───────────────────────────────┘
+│  - apiUsage                   │          │ @google/genai → Gemini API      │
+└─────────────────────────────┘          └───────────────────────────────┘
 ```
 
 Nothing above the "Service" layer knows Gemini exists — see AI_PIPELINE.md.
@@ -29,22 +30,25 @@ Nothing above the "Service" layer knows Gemini exists — see AI_PIPELINE.md.
 ```
 src/
 ├── app/
-│   ├── page.tsx                    New lesson (paste text / upload screenshot)
+│   ├── page.tsx                    New lesson (paste text / upload screenshots)
+│   ├── bulk-import/page.tsx        Paste large text → outline → review → generate several lessons
 │   ├── library/page.tsx            Saved lessons list
-│   ├── settings/page.tsx           Stub (placeholder)
+│   ├── settings/page.tsx           API usage dashboard (economy-mode UI still a stub)
 │   ├── import-export/page.tsx      Library-wide export/import
 │   ├── lessons/[id]/page.tsx       Server wrapper → LessonPageClient
 │   └── api/
-│       ├── lesson-plan/route.ts    Text → VisualLesson
-│       ├── extract/route.ts        Screenshot → markdown
-│       ├── lesson-patch/route.ts   Chat message → patches + reply
-│       └── verify-lesson/route.ts  Advisory consistency check
+│       ├── lesson-plan/route.ts        Text → VisualLesson (visuals attached internally)
+│       ├── extract/route.ts            Screenshot(s) → markdown
+│       ├── lesson-patch/route.ts       Chat message → patches + reply
+│       ├── verify-lesson/route.ts      Advisory consistency check
+│       └── bulk-import-plan/route.ts   Large text → proposed lesson splits
 ├── components/
 │   ├── layout/                     AppShell, Sidebar, TopBar, ThemeToggle
-│   ├── lesson/                     NewLessonForm, LessonWorkspace, LessonChatPanel,
-│   │                               LessonVerificationPanel, ScreenshotUploader,
-│   │                               LessonPageClient (ties lesson state to both
-│   │                               the workspace and the chat panel)
+│   ├── lesson/                     NewLessonForm, BulkImportPanel, LessonWorkspace,
+│   │                               LessonChatPanel, LessonVerificationPanel,
+│   │                               ScreenshotUploader, LessonPageClient (ties lesson
+│   │                               state to both the workspace and the chat panel)
+│   ├── settings/                   ApiUsageDashboard
 │   ├── equations/equation.tsx      KaTeX wrapper
 │   ├── visuals/                    registry.ts, VisualBlockRenderer, UnsupportedVisual,
 │   │                               and one subfolder per template category
@@ -55,14 +59,16 @@ src/
 ├── lib/
 │   ├── ai/                         provider.ts (interface), config.ts (model names),
 │   │                               rateLimit.ts, errors.ts, routeErrorResponse.ts,
+│   │                               usageContext.ts, jsonWithUsage.ts,
 │   │                               *Service.ts (one per AI operation),
 │   │                               gemini/ (the one current provider implementation)
 │   ├── lessonPatch/                applyLessonPatch.ts (pure), condenseLesson*.ts
 │   │                               (trimmed lesson views sent to the AI)
-│   ├── cache/requestCache.ts       content-hash cache for lesson-plan/extract/verify
+│   ├── cache/requestCache.ts       content-hash cache for lesson-plan/extract/verify/bulk-import
 │   ├── schema/                     Zod schemas — see VISUAL_SCHEMA.md
 │   ├── storage/                    IndexedDB (db.ts) + one repository per concern
-│   │                               (lessons, revisions, conversations) + exportImport.ts
+│   │                               (lessons, revisions, conversations, apiUsage)
+│   │                               + exportImport.ts
 │   ├── upload/                     client-side image validation + canvas compression
 │   └── mock/                       hand-written example lesson (no AI call)
 └── styles/globals.css

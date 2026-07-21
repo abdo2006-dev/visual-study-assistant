@@ -12,6 +12,7 @@ interface LessonAIProvider {
   modifyLesson(input: ModifyLessonInput): Promise<ModifyLessonResult>;
   verifyLesson(input: VerifyLessonInput): Promise<LessonVerification>;
   planVisuals(input: PlanVisualsInput): Promise<VisualPlan>;
+  planBulkImport(input: PlanBulkImportInput): Promise<BulkImportPlan>;
 }
 ```
 
@@ -19,7 +20,7 @@ interface LessonAIProvider {
 implementation. Swapping providers means writing one new class — no route,
 service, or UI code depends on Gemini's response shapes.
 
-## The five operations
+## The six operations
 
 | Operation | Route | Input | Output |
 |---|---|---|---|
@@ -28,12 +29,40 @@ service, or UI code depends on Gemini's response shapes.
 | Source extraction | `/api/extract` | one or more compressed screenshots | reading-order markdown |
 | Lesson modification | `/api/lesson-patch` | a chat message + condensed lesson | a reply + `LessonPatch[]` |
 | Verification | `/api/verify-lesson` | a condensed lesson | an advisory `LessonVerification` |
+| Bulk import outline | `/api/bulk-import-plan` | a large block of pasted text | one or more proposed lessons, each a verbatim excerpt |
 
 Each has its own prompt module under `src/lib/ai/gemini/prompts/` and its
 own Zod schema. Visual planning has no route of its own — `generateLessonPlan`
 (`src/lib/ai/lessonPlanService.ts`) calls `provider.planVisuals` itself right
 after `provider.createLessonPlan`, so a single `POST /api/lesson-plan` request
 still returns a lesson with visuals already attached.
+
+## Bulk import: outline-first, two-pass
+
+`/bulk-import` splits a large paste into several lessons without
+sacrificing per-lesson quality, by keeping the outline pass and the actual
+lesson generation as two separate AI calls rather than one call trying to
+do both:
+
+1. **Outline pass** (`bulkImportPlanService.ts` → `planBulkImport`): reads
+   the whole pasted text once and proposes a title + verbatim source
+   excerpt per lesson. The prompt (`prompts/bulkImportPlan.ts`) explicitly
+   forbids paraphrasing — each `sourceText` must be copied character for
+   character from the original.
+2. **Verification, not trust**: nothing stops a model from paraphrasing
+   anyway, so the service checks each proposed excerpt is actually a
+   (whitespace-normalized) substring of the original text before it ever
+   reaches the UI — any that isn't gets dropped, same "never trust AI
+   output as-is" principle as `toLessonPatch`/`toVisualBlockAssignment`.
+3. **Review**: the user can rename or exclude any proposed lesson in the
+   UI before generating.
+4. **Per-lesson generation**: each included excerpt is fed to the
+   existing `POST /api/lesson-plan` unchanged — the exact same
+   single-lesson pipeline (including visual planning), one full-quality
+   call per lesson, generated sequentially with a progress indicator
+   rather than in parallel (gentler on the shared rate limiter, and
+   naturally caps concurrent Gemini calls). A failure on one lesson
+   doesn't stop the rest of the batch.
 
 ## Central model configuration
 
@@ -81,21 +110,23 @@ cases — so those operations send less than the full document.
 ## Rate limiting and caching
 
 - `src/lib/ai/rateLimit.ts`: a fixed-window limiter (10 requests/minute),
-  shared across all four routes, in a single process-lifetime variable.
+  shared across all five routes, in a single process-lifetime variable.
   This is not multi-tenant infrastructure — it exists to catch a runaway
   client loop, not to defend against abuse at scale (see the Vercel caveat
-  in ROADMAP.md).
+  in ROADMAP.md). Bulk import's per-lesson generation calls go through
+  this same limiter one at a time (see above), so a large batch is
+  naturally paced rather than bursting past it.
 - `src/lib/cache/requestCache.ts`: a content-hash, in-memory,
-  process-lifetime cache. Lesson planning, extraction, and verification
-  all use it (repeating the same input skips the Gemini call). Chat
-  (`lessonPatchService.ts`) deliberately does **not** cache — a cached
-  patch could reference a section/visual id a later edit has already
-  removed.
+  process-lifetime cache. Lesson planning, extraction, verification, and
+  the bulk-import outline pass all use it (repeating the same input skips
+  the Gemini call). Chat (`lessonPatchService.ts`) deliberately does
+  **not** cache — a cached patch could reference a section/visual id a
+  later edit has already removed.
 
 ## Error handling
 
 `mapAiErrorToResponse` (`src/lib/ai/routeErrorResponse.ts`) is the one
-place that turns a thrown error into an HTTP response, for all four
+place that turns a thrown error into an HTTP response, for all five
 routes:
 
 | Error | Status |
@@ -137,7 +168,7 @@ already carries the actual result — there's no separate telemetry channel.
   usage capture didn't require threading a new return value through every
   provider method, service function, and route (5 operations deep in
   places).
-- Each of the four routes wraps its work in `jsonWithUsage`
+- Each of the five routes wraps its work in `jsonWithUsage`
   (`src/lib/ai/jsonWithUsage.ts`), which runs it inside
   `withUsageTracking` and spreads the collected calls onto the JSON
   response as `apiUsage: GeminiCallUsage[]`.

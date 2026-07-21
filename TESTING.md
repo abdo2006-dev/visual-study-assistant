@@ -61,6 +61,13 @@ new test's pass/fail depend on real network access.
   real and repair-retry calls, `jsonWithUsage` attaching `apiUsage` to a
   response, and `apiUsageRepository`'s record/query/prune behavior against
   `fake-indexeddb`.
+- **Bulk import**: the outline schema, `GeminiProvider.planBulkImport`
+  (mocked SDK), and `bulkImportPlanService`'s verbatim-match safeguard —
+  including that it tolerates whitespace differences but drops a
+  paraphrased excerpt and throws if every proposed lesson fails
+  verification (`tests/unit/bulk-import-plan-service.test.ts`); an e2e
+  test covers the full propose → review (exclude one) → generate flow,
+  plus a partial-batch-failure case.
 - **Route handlers**: called directly as functions (`POST(request)`), no
   real Next.js server needed — malformed JSON, missing fields, and every
   mapped error status (400/429/500/502/504) per route.

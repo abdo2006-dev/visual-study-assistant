@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, FolderOpen, MessageSquarePlus, Settings } from "lucide-react";
+import { ArrowUpDown, FolderOpen, Layers, MessageSquarePlus, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "New lesson", icon: MessageSquarePlus },
+  { href: "/bulk-import", label: "Bulk import", icon: Layers },
   { href: "/library", label: "Library", icon: FolderOpen },
   { href: "/import-export", label: "Import / export", icon: ArrowUpDown },
   { href: "/settings", label: "Settings", icon: Settings },

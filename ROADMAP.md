@@ -28,6 +28,11 @@
   page, next to a clearly-caveated free-tier reference table (see
   AI_PIPELINE.md's "Usage tracking" section for how the numbers get from
   server to client with no server-side database involved).
+- **Milestone 12** — bulk text import (`/bulk-import`): paste or upload a
+  large block of study material, an outline pass proposes a verbatim
+  split into several lessons (or one, if it's cohesive), reviewed and
+  adjustable before each generates independently through the normal
+  pipeline — see AI_PIPELINE.md's "Bulk import" section.
 
 ## Known limitations / deliberately out of scope
 
@@ -57,6 +62,11 @@
   free-tier limits on its own rate-limits page or expose a "remaining
   quota" API — see `ApiUsageDashboard`'s own caveats and the link to
   Google AI Studio's live dashboard for the real numbers.
+- **Bulk import generates lessons sequentially, one at a time**, not in
+  parallel — deliberate, to stay gentle on the shared rate limiter, but
+  it means a batch of many lessons takes a while and can't be sped up
+  from the UI. Capped at 60,000 characters of input and 20 proposed
+  lessons per batch.
 - **Rate limiting is per-process**, not distributed — see the Vercel
   caveat in SECURITY.md.
 - **The Cloudflare deployment option wasn't pursued.** The app is
@@ -68,18 +78,14 @@
 
 Roughly in order of likely value:
 
-1. **Bulk/multi-document import** — paste or upload a large block of
-   source material and have an AI pass propose a topic-based split into
-   multiple lessons (or one, if the material is cohesive), reviewed and
-   adjustable before each lesson generates independently through the
-   normal pipeline (so per-lesson quality doesn't degrade with more
-   material, unlike a single AI call trying to generate everything at
-   once).
-2. **More visual templates** — the ten cover electrostatics (point,
+1. **More visual templates** — the ten cover electrostatics (point,
    spherical, cylindrical, and planar symmetry, plus dipoles) and six
    general-purpose diagrams; more subject-specific templates (e.g. a
    titration/pH curve for chemistry, an energy-level diagram, a
    free-body diagram) would broaden coverage further.
+2. **Parallelizing bulk-import generation** (with a concurrency cap that
+   respects the shared rate limiter), if sequential generation proves too
+   slow for larger batches in practice.
 3. **Settings UI** for switching economy mode and provider status, per
    IMPLEMENTATION_PLAN.md section 18.
 4. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.
