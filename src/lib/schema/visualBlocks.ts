@@ -20,13 +20,12 @@ export const generationStatusSchema = z.enum([
 ]);
 
 /**
- * Shared shape only. `templateId` + `parameters` stay loose (generic
- * key/value bag) until Milestone 5, where each templateId gets a strict,
- * typed parameter schema (registry pattern, see IMPLEMENTATION_PLAN.md
- * section 6) and this becomes a real discriminated union. Until then the
- * registry falls back to an "unsupported visual" placeholder for anything
- * it doesn't recognize, so this looseness never reaches the renderer as
- * arbitrary trusted code.
+ * `templateId` + `parameters` stay loose here (generic key/value bag) by
+ * design: the strict, typed parameter schema lives per-template in the
+ * visual registry (src/components/visuals/registry.ts), not here. A
+ * `templateId` the registry doesn't recognize, or `parameters` that fail
+ * that template's schema, renders UnsupportedVisual — this looseness never
+ * reaches the renderer as arbitrary trusted code.
  */
 export const visualBlockSchema = z.object({
   id: z.string().min(1),

@@ -9,11 +9,10 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full
 architecture, schema design, and milestone plan, and
 [VISUAL_TEMPLATE_GUIDE.md](./VISUAL_TEMPLATE_GUIDE.md) for how the visual
 registry works and how to add a new template. This README covers running
-what currently exists (through Milestone 6: app shell, local library,
+what currently exists (through Milestone 7: app shell, local library,
 text-to-lesson generation, screenshot upload/extraction, KaTeX equations,
-and all seven initial visual templates — charged sphere, force vectors,
-particle diffusion, process flow, coordinate geometry, waves, and a simple
-circuit).
+all seven initial visual templates, and chat-based lesson editing with
+validated patches and undo/redo).
 
 ## Prerequisites
 
@@ -31,8 +30,8 @@ cp .env.example .env.local
 ```
 
 `GEMINI_API_KEY` is only read server-side (see `src/lib/ai/config.ts`) and is
-never bundled into client code. Everything except "Generate lesson" and
-"Extract text" (screenshot upload) on the New Lesson page works without it.
+never bundled into client code. Everything except "Generate lesson",
+"Extract text" (screenshot upload), and the lesson chat works without it.
 
 ## Development
 
@@ -86,7 +85,8 @@ npm run lint
 - **Playwright can't find a browser**: run
   `npx playwright install chromium`.
 - **A route errors with a missing-API-key message**: expected until you set
-  `GEMINI_API_KEY` in `.env.local` — only `/api/lesson-plan` needs it.
+  `GEMINI_API_KEY` in `.env.local` — only `/api/lesson-plan`, `/api/extract`,
+  and `/api/lesson-patch` need it.
 - **Gemini errors with "model ... is no longer available to new users"**:
   Google occasionally sunsets specific dated model names. `src/lib/ai/config.ts`
   uses the rolling `-latest` aliases (`gemini-flash-latest`, etc.) specifically

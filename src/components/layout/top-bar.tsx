@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, PanelRight } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ import { ChatPanelContent } from "./chat-drawer";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 
-export function TopBar() {
+export function TopBar({ chatPanel }: { chatPanel?: ReactNode }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3 md:px-4">
       <div className="flex items-center gap-2">
@@ -58,7 +59,7 @@ export function TopBar() {
           </SheetTrigger>
           <SheetContent side="right" className="w-80 p-0">
             <SheetTitle className="sr-only">Chat</SheetTitle>
-            <ChatPanelContent />
+            {chatPanel ?? <ChatPanelContent />}
           </SheetContent>
         </Sheet>
       </div>

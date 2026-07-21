@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { getLesson } from "@/lib/storage/lessonRepository";
@@ -9,6 +9,19 @@ export function useLesson(id: string) {
   const [lesson, setLesson] = useState<VisualLesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getLesson(id);
+      setLesson(result ?? null);
+      setError(result ? null : "Lesson not found.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load lesson.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,5 +47,5 @@ export function useLesson(id: string) {
     };
   }, [id]);
 
-  return { lesson, loading, error };
+  return { lesson, loading, error, refresh };
 }

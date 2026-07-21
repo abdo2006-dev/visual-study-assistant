@@ -1,5 +1,4 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { LessonWorkspace } from "@/components/lesson/lesson-workspace";
+import { LessonPageClient } from "@/components/lesson/lesson-page-client";
 
 export default async function LessonPage({
   params,
@@ -8,9 +7,5 @@ export default async function LessonPage({
 }) {
   const { id } = await params;
 
-  return (
-    <AppShell>
-      <LessonWorkspace id={id} />
-    </AppShell>
-  );
+  return <LessonPageClient id={id} />;
 }

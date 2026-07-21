@@ -1,15 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Equation } from "@/components/equations/equation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { VisualBlockRenderer } from "@/components/visuals/visual-block-renderer";
-import { useLesson } from "@/hooks/useLesson";
+import type { VisualLesson } from "@/lib/schema/lesson";
 import { exportLesson } from "@/lib/storage/exportImport";
-import { deleteLesson } from "@/lib/storage/lessonRepository";
+import { deleteLesson, saveLesson } from "@/lib/storage/lessonRepository";
+import { canRedo, canUndo, redo, undo } from "@/lib/storage/revisionRepository";
 
 function download(filename: string, contents: string) {
   const blob = new Blob([contents], { type: "application/json" });
@@ -21,36 +22,55 @@ function download(filename: string, contents: string) {
   URL.revokeObjectURL(url);
 }
 
-export function LessonWorkspace({ id }: { id: string }) {
-  const { lesson, loading, error } = useLesson(id);
+export function LessonWorkspace({
+  lesson,
+  onLessonChanged,
+}: {
+  lesson: VisualLesson;
+  onLessonChanged: () => void;
+}) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [undoAvailable, setUndoAvailable] = useState(false);
+  const [redoAvailable, setRedoAvailable] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([canUndo(lesson.id), canRedo(lesson.id)]).then(([u, r]) => {
+      if (!cancelled) {
+        setUndoAvailable(u);
+        setRedoAvailable(r);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lesson]);
 
   async function handleDelete() {
     setDeleting(true);
-    await deleteLesson(id);
+    await deleteLesson(lesson.id);
     router.push("/library");
   }
 
   function handleExport() {
-    if (!lesson) return;
     download(`${lesson.id}.json`, exportLesson(lesson));
   }
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-3xl px-6 py-12">
-        <p className="text-sm text-muted-foreground">Loading lesson...</p>
-      </div>
-    );
+  async function handleUndo() {
+    const restored = await undo(lesson.id);
+    if (restored) {
+      await saveLesson(restored);
+      onLessonChanged();
+    }
   }
 
-  if (error || !lesson) {
-    return (
-      <div className="mx-auto max-w-3xl px-6 py-12">
-        <p className="text-sm text-destructive">{error ?? "Lesson not found."}</p>
-      </div>
-    );
+  async function handleRedo() {
+    const restored = await redo(lesson.id);
+    if (restored) {
+      await saveLesson(restored);
+      onLessonChanged();
+    }
   }
 
   return (
@@ -63,6 +83,22 @@ export function LessonWorkspace({ id }: { id: string }) {
           <p className="text-sm text-muted-foreground">{lesson.summary}</p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUndo}
+            disabled={!undoAvailable}
+          >
+            Undo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRedo}
+            disabled={!redoAvailable}
+          >
+            Redo
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             Export
           </Button>

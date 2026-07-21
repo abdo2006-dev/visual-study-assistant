@@ -9,18 +9,27 @@ import {
   extractionResponseSchema,
 } from "@/lib/ai/gemini/prompts/extraction";
 import {
+  buildLessonPatchPrompt,
+  lessonPatchAiResponseSchema,
+  lessonPatchResponseSchema,
+} from "@/lib/ai/gemini/prompts/lessonPatch";
+import {
   aiLessonPlanSchema,
   buildLessonPlanPrompt,
   lessonPlanResponseSchema,
 } from "@/lib/ai/gemini/prompts/lessonPlan";
+import { toLessonPatch } from "@/lib/ai/gemini/toLessonPatch";
 import type {
   CreateLessonPlanInput,
   ExtractSourceInput,
   LessonAIProvider,
+  ModifyLessonInput,
+  ModifyLessonResult,
 } from "@/lib/ai/provider";
 import { extractedSourceSchema } from "@/lib/schema/extraction";
 import type { ExtractedSource } from "@/lib/schema/extraction";
 import type { VisualLesson } from "@/lib/schema/lesson";
+import type { LessonPatch } from "@/lib/schema/patch";
 
 export { AiGenerationError };
 
@@ -65,5 +74,31 @@ export class GeminiProvider implements LessonAIProvider {
       ],
       signal,
     });
+  }
+
+  async modifyLesson({
+    lesson,
+    message,
+    history = [],
+    mode = "economical",
+    signal,
+  }: ModifyLessonInput): Promise<ModifyLessonResult> {
+    const client = getGeminiClient();
+    const model = getModelFor(mode);
+
+    const aiResponse = await generateWithRepair({
+      client,
+      model,
+      schema: lessonPatchAiResponseSchema,
+      responseSchema: lessonPatchResponseSchema,
+      initialParts: [{ text: buildLessonPatchPrompt(lesson, message, history) }],
+      signal,
+    });
+
+    const patches = aiResponse.patches
+      .map(toLessonPatch)
+      .filter((patch): patch is LessonPatch => patch !== null);
+
+    return { reply: aiResponse.reply, patches };
   }
 }
