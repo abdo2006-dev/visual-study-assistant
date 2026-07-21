@@ -20,7 +20,7 @@ describe("lessonRepository", () => {
 
     const fetched = await getLesson(lesson.id);
     expect(fetched?.title).toBe(lesson.title);
-    expect(fetched?.sections).toHaveLength(3);
+    expect(fetched?.sections).toHaveLength(4);
   });
 
   it("lists lessons newest-updated first", async () => {

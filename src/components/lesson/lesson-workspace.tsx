@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Equation } from "@/components/equations/equation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { VisualBlockRenderer } from "@/components/visuals/visual-block-renderer";
 import { useLesson } from "@/hooks/useLesson";
 import { exportLesson } from "@/lib/storage/exportImport";
 import { deleteLesson } from "@/lib/storage/lessonRepository";
@@ -112,20 +114,26 @@ export function LessonWorkspace({ id }: { id: string }) {
             {section.equations.length > 0 && (
               <div className="flex flex-col gap-2">
                 {section.equations.map((equation) => (
-                  <code
+                  <div
                     key={equation.id}
-                    className="block rounded-md bg-muted px-3 py-2 text-xs"
+                    className="flex flex-col gap-1 rounded-md bg-muted px-3 py-2"
                   >
-                    {equation.latex}
-                    {equation.appliesWhen ? ` (when ${equation.appliesWhen})` : ""}
-                  </code>
+                    <Equation latex={equation.latex} display />
+                    {equation.appliesWhen && (
+                      <span className="text-xs text-muted-foreground">
+                        when {equation.appliesWhen}
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
-            {section.visuals.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Interactive visuals for this section arrive in Milestone 5.
-              </p>
+            {section.visuals.length > 0 && (
+              <div className="flex flex-col gap-4">
+                {section.visuals.map((visual) => (
+                  <VisualBlockRenderer key={visual.id} block={visual} />
+                ))}
+              </div>
             )}
             <Separator className="mt-2" />
           </section>

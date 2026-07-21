@@ -6,10 +6,12 @@ lessons — deterministic SVG/Canvas diagrams driven by an AI-generated lesson
 plan, not freeform AI-generated images.
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full
-architecture, schema design, and milestone plan. This README covers running
-what currently exists (through Milestone 4: app shell, local library,
-text-to-lesson generation, and screenshot upload/extraction, all via
-Gemini).
+architecture, schema design, and milestone plan, and
+[VISUAL_TEMPLATE_GUIDE.md](./VISUAL_TEMPLATE_GUIDE.md) for how the visual
+registry works and how to add a new template. This README covers running
+what currently exists (through Milestone 5: app shell, local library,
+text-to-lesson generation, screenshot upload/extraction, and the first
+interactive visual template with KaTeX equation rendering).
 
 ## Prerequisites
 

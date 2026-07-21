@@ -1,11 +1,13 @@
 import { LESSON_SCHEMA_VERSION, type VisualLesson } from "@/lib/schema/lesson";
 
 /**
- * A hand-written stand-in for what Milestone 3's AI lesson-planning pipeline
- * will produce. Used to exercise the local library (storage, library list,
- * workspace view, export/import) before real AI generation exists. Visuals
- * are intentionally empty — the visual template registry lands in
- * Milestone 5.
+ * A hand-written stand-in for what the AI lesson-planning pipeline
+ * produces. Used to exercise the local library (storage, library list,
+ * workspace view, export/import) without spending Gemini quota, and to
+ * demonstrate the radial-charged-sphere visual template. AI-driven visual
+ * planning (the AI itself deciding to attach this template to a real
+ * generated lesson) is intentionally deferred until Milestone 6 adds more
+ * templates to choose from — see IMPLEMENTATION_PLAN.md.
  */
 export function createChargedSphereMockLesson(): VisualLesson {
   const now = new Date().toISOString();
@@ -98,6 +100,41 @@ export function createChargedSphereMockLesson(): VisualLesson {
           },
         ],
         visuals: [],
+      },
+      {
+        id: "interactive-exploration",
+        heading: "Explore it yourself",
+        sourceText: "",
+        simplifiedExplanation:
+          "Drag the slider to move the observation point from the center out past the sphere, and watch the field arrows, Gaussian surface, and equations update to match.",
+        importantTerms: [],
+        equations: [],
+        visuals: [
+          {
+            id: "sphere-visual",
+            type: "scientific-diagram",
+            templateId: "radial-charged-sphere",
+            title: "Field and potential of a uniformly charged solid sphere",
+            educationalPurpose:
+              "Lets a student see how the field and potential formulas change as the observation point crosses the sphere's surface.",
+            accessibilityDescription:
+              "An interactive diagram of a charged sphere with a slider that moves an observation point from the center outward, updating field arrows, a Gaussian surface, and the field and potential equations to match the current region.",
+            parameters: {
+              sphereType: "solid-insulator",
+              chargeSign: "positive",
+              showGaussianSurface: true,
+              showFieldVectors: true,
+              showIntegralPath: true,
+              showPotentialPlot: true,
+              initialObservationRadiusRatio: 0.6,
+            },
+            controls: ["radius-slider"],
+            annotations: [],
+            sourceSectionId: "interactive-exploration",
+            factualChecks: [],
+            generationStatus: "ready",
+          },
+        ],
       },
     ],
     createdAt: now,

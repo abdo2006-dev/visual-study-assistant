@@ -10,7 +10,7 @@ import NewLessonPage from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
 
 describe("NewLessonPage", () => {
-  it("renders the app shell and the new-lesson form", () => {
+  it("renders the app shell and the new-lesson form", async () => {
     render(
       <ThemeProvider attribute="class">
         <NewLessonPage />
@@ -24,5 +24,9 @@ describe("NewLessonPage", () => {
       screen.getByPlaceholderText(/paste a text explanation/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /library/i })).toBeInTheDocument();
+
+    // The sidebar's lesson-library fetch resolves asynchronously (IndexedDB);
+    // wait for it so the test doesn't finish before that microtask fires.
+    await screen.findByText(/saved lessons will appear here/i);
   });
 });
