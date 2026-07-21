@@ -25,11 +25,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <Separator />
       <ScrollArea className="flex-1 px-3 py-3">
         {loading ? (
-          <p className="px-1 text-xs text-sidebar-foreground/60">
+          <p className="px-1 text-xs text-sidebar-foreground/80">
             Loading lessons...
           </p>
         ) : lessons.length === 0 ? (
-          <p className="px-1 text-xs text-sidebar-foreground/60">
+          <p className="px-1 text-xs text-sidebar-foreground/80">
             Saved lessons will appear here.
           </p>
         ) : (

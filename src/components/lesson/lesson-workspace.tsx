@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { VisualBlockRenderer } from "@/components/visuals/visual-block-renderer";
 import type { VisualLesson } from "@/lib/schema/lesson";
+
+import { LessonVerificationPanel } from "./lesson-verification-panel";
 import { exportLesson } from "@/lib/storage/exportImport";
 import { deleteLesson, saveLesson } from "@/lib/storage/lessonRepository";
 import { canRedo, canUndo, redo, undo } from "@/lib/storage/revisionRepository";
@@ -75,14 +77,14 @@ export function LessonWorkspace({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">
             {lesson.title}
           </h1>
           <p className="text-sm text-muted-foreground">{lesson.summary}</p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap gap-2 sm:shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -156,7 +158,7 @@ export function LessonWorkspace({
                   >
                     <Equation latex={equation.latex} display />
                     {equation.appliesWhen && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-foreground/70">
                         when {equation.appliesWhen}
                       </span>
                     )}
@@ -175,6 +177,8 @@ export function LessonWorkspace({
           </section>
         ))}
       </div>
+
+      <LessonVerificationPanel lesson={lesson} />
     </div>
   );
 }

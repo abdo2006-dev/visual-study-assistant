@@ -103,8 +103,8 @@ export function NewLessonForm() {
         <p className="text-sm text-muted-foreground">
           Paste an explanation, or upload a screenshot to extract its text.
           The AI turns it into sections with a simplified explanation and
-          any equations it finds — interactive visuals for each section
-          arrive in Milestone 5.
+          any equations it finds. Ask the chat on a lesson to add an
+          interactive visual once it&apos;s generated.
         </p>
       </div>
 
