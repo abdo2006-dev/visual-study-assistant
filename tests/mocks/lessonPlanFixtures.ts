@@ -27,6 +27,7 @@ export const validAiLessonPlan: AiLessonPlan = {
           ],
         },
       ],
+      curiosityQuestions: [],
     },
   ],
 };

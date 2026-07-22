@@ -96,6 +96,20 @@ export function applyLessonPatch(lesson: VisualLesson, patch: LessonPatch): Visu
       };
     }
 
+    case "add-curiosity-question":
+      return updateSection(lesson, patch.sectionId, (section) => ({
+        ...section,
+        curiosityQuestions: [
+          ...section.curiosityQuestions,
+          {
+            id: crypto.randomUUID(),
+            type: patch.questionType,
+            question: patch.question,
+            answer: patch.answer,
+          },
+        ],
+      }));
+
     case "add-prerequisite":
       return {
         ...lesson,

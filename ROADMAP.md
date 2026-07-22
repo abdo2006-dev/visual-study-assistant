@@ -84,6 +84,16 @@
     (Automatic/Economical/Balanced/Highest quality), persisted in
     `localStorage` and sent as an override on every AI route call —
     "Automatic" leaves the new per-operation defaults above in place.
+- **Milestone 17** — curiosity questions: each section can now carry a
+  short list of proactive why/how/what follow-ups (mostly "why"), shown
+  as collapsed-by-default boxes so a section that doesn't need one stays
+  uncluttered. Lesson generation adds them where a claim would genuinely
+  leave a sharp student unsatisfied (e.g. "the potential is zero, but why
+  isn't the field also zero?"); asking a why/how/what question in chat
+  about existing content now also persists the answer as one of these
+  boxes via a new `add-curiosity-question` patch, instead of only living
+  in the chat transcript — see AI_PIPELINE.md's "Curiosity questions"
+  section.
 
 ## Known limitations / deliberately out of scope
 

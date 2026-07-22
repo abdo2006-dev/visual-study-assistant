@@ -23,6 +23,7 @@ const condensedSectionSchema = z.object({
   heading: z.string().optional(),
   simplifiedExplanation: z.string(),
   visuals: z.array(condensedVisualSchema),
+  existingCuriosityQuestions: z.array(z.string()),
 });
 const condensedLessonSchema = z.object({
   title: z.string(),

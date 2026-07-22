@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { VisualBlockRenderer } from "@/components/visuals/visual-block-renderer";
 import type { VisualLesson } from "@/lib/schema/lesson";
 
+import { CuriosityQuestions } from "./curiosity-questions";
 import { LessonVerificationPanel } from "./lesson-verification-panel";
 import { exportLesson } from "@/lib/storage/exportImport";
 import { deleteLesson, saveLesson } from "@/lib/storage/lessonRepository";
@@ -180,6 +181,7 @@ export function LessonWorkspace({
                 ))}
               </div>
             )}
+            <CuriosityQuestions questions={section.curiosityQuestions} />
             <Separator className="mt-2" />
           </section>
         ))}

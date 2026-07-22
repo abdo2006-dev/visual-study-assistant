@@ -25,6 +25,12 @@ export const aiEquationSchema = z.object({
   appliesWhen: z.string().optional(),
 });
 
+export const aiCuriosityQuestionSchema = z.object({
+  type: z.enum(["why", "how", "what"]),
+  question: z.string().min(1),
+  answer: z.string().min(1),
+});
+
 export const aiLessonSectionSchema = z.object({
   heading: z.string().optional(),
   sourceText: z.string().min(1),
@@ -33,6 +39,7 @@ export const aiLessonSectionSchema = z.object({
     .array(z.object({ term: z.string().min(1), definition: z.string().min(1) }))
     .default([]),
   equations: z.array(aiEquationSchema).default([]),
+  curiosityQuestions: z.array(aiCuriosityQuestionSchema).default([]),
 });
 
 export const aiLessonPlanSchema = z.object({
@@ -74,6 +81,26 @@ const equationSchemaForGemini = {
   required: ["latex"],
 };
 
+const curiosityQuestionSchemaForGemini = {
+  type: Type.OBJECT,
+  properties: {
+    type: {
+      type: Type.STRING,
+      enum: ["why", "how", "what"],
+      description: "Mainly \"why\" — the reasoning behind a claim. Use \"how\"/\"what\" only when they add real understanding.",
+    },
+    question: {
+      type: Type.STRING,
+      description: "The follow-up question a curious student would naturally ask about this section.",
+    },
+    answer: {
+      type: Type.STRING,
+      description: "A concise, concrete answer, reasoning from the section's own content or standard, well-established knowledge — never invented facts.",
+    },
+  },
+  required: ["type", "question", "answer"],
+};
+
 const sectionSchemaForGemini = {
   type: Type.OBJECT,
   properties: {
@@ -98,6 +125,7 @@ const sectionSchemaForGemini = {
       },
     },
     equations: { type: Type.ARRAY, items: equationSchemaForGemini },
+    curiosityQuestions: { type: Type.ARRAY, items: curiosityQuestionSchemaForGemini },
   },
   required: ["sourceText", "simplifiedExplanation"],
 };
@@ -126,6 +154,8 @@ Rules:
 - For each section, write a simplifiedExplanation that is more concrete and easier to follow than the source text — favor plain language over jargon, and be specific rather than vague.
 - Extract every equation that appears or is clearly implied, as LaTeX.
 - Extract terms a student would need defined to follow the section.
+- For each section, add curiosityQuestions ONLY where a sharp student would genuinely feel something is unresolved — especially a claim that sounds surprising or incomplete on its own (e.g. "the potential is zero, but the field isn't" begs "why not?"). Mostly "why" (the reasoning behind a claim, not just a restatement of it); use "how" or "what" only when they add real understanding a "why" wouldn't. Skip this entirely for sections that are already self-contained — most sections should get 0, some 1, rarely more than 2. A forced question that just restates the explanation is worse than no question.
+- Every curiosityQuestions answer must reason from the source text or standard, well-established knowledge about the topic — never invented facts, numbers, or claims.
 - Do not invent facts, numbers, or claims that are not in the source text and not standard, well-established knowledge about the topic.
 - Output must be valid JSON matching the provided schema exactly. Do not include any text outside the JSON.`;
 

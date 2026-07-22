@@ -33,6 +33,28 @@ describe("lessonPatchSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts an add-curiosity-question patch", () => {
+    const result = lessonPatchSchema.safeParse({
+      op: "add-curiosity-question",
+      sectionId: "s1",
+      questionType: "why",
+      question: "Why does this happen?",
+      answer: "Because of X.",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an add-curiosity-question patch with an invalid questionType", () => {
+    const result = lessonPatchSchema.safeParse({
+      op: "add-curiosity-question",
+      sectionId: "s1",
+      questionType: "when",
+      question: "Why does this happen?",
+      answer: "Because of X.",
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("accepts an add-prerequisite patch", () => {
     expect(
       lessonPatchSchema.safeParse({ op: "add-prerequisite", prerequisite: "Vectors" }).success

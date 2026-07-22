@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { curiosityQuestionTypeSchema } from "./lesson";
 import { visualBlockTypeSchema } from "./visualBlocks";
 
 /**
@@ -44,6 +45,13 @@ export const lessonPatchSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("remove-section"),
     sectionId: z.string().min(1),
+  }),
+  z.object({
+    op: z.literal("add-curiosity-question"),
+    sectionId: z.string().min(1),
+    questionType: curiosityQuestionTypeSchema,
+    question: z.string().min(1),
+    answer: z.string().min(1),
   }),
   z.object({
     op: z.literal("add-prerequisite"),

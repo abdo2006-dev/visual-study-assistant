@@ -48,6 +48,35 @@ describe("GeminiProvider.createLessonPlan", () => {
     expect(generateContent).toHaveBeenCalledTimes(1);
   });
 
+  it("assigns generated ids to curiosityQuestions from the AI response", async () => {
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        ...validAiLessonPlan,
+        sections: [
+          {
+            ...validAiLessonPlan.sections[0],
+            curiosityQuestions: [
+              {
+                type: "why",
+                question: "Why does inertia resist a change in motion?",
+                answer: "Because mass has no preference for changing its state of motion on its own.",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
+    const lesson = await new GeminiProvider().createLessonPlan({
+      sourceText: "An object in motion stays in motion.",
+    });
+
+    expect(lesson.sections[0].curiosityQuestions).toHaveLength(1);
+    expect(lesson.sections[0].curiosityQuestions[0].id).toBeTruthy();
+    expect(lesson.sections[0].curiosityQuestions[0].type).toBe("why");
+  });
+
   it("repairs an invalid first response by retrying once", async () => {
     generateContent
       .mockResolvedValueOnce({ text: "not valid json" })

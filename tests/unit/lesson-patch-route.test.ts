@@ -18,7 +18,13 @@ const validLesson = {
   summary: "A test lesson.",
   prerequisites: [],
   sections: [
-    { id: "s1", heading: "Section 1", simplifiedExplanation: "Some text.", visuals: [] },
+    {
+      id: "s1",
+      heading: "Section 1",
+      simplifiedExplanation: "Some text.",
+      visuals: [],
+      existingCuriosityQuestions: [],
+    },
   ],
 };
 

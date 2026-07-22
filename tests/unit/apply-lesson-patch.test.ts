@@ -94,6 +94,22 @@ describe("applyLessonPatch", () => {
     expect(result.sections).toHaveLength(3);
   });
 
+  it("add-curiosity-question appends a new question with a generated id", () => {
+    const result = applyLessonPatch(lesson(), {
+      op: "add-curiosity-question",
+      sectionId: "region-outside",
+      questionType: "why",
+      question: "Why does this hold everywhere outside the sphere?",
+      answer: "Because Gauss's law only depends on enclosed charge, not its arrangement.",
+    });
+    const section = result.sections.find((s) => s.id === "region-outside");
+    expect(section?.curiosityQuestions).toHaveLength(2);
+    const added = section?.curiosityQuestions[1];
+    expect(added?.type).toBe("why");
+    expect(added?.question).toBe("Why does this hold everywhere outside the sphere?");
+    expect(added?.id).toBeTruthy();
+  });
+
   it("add-prerequisite appends to the lesson's prerequisites", () => {
     const original = lesson();
     const result = applyLessonPatch(original, {

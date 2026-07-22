@@ -23,6 +23,23 @@ describe("toLessonPatch", () => {
     });
   });
 
+  it("passes through an add-curiosity-question op", () => {
+    const patch = toLessonPatch({
+      op: "add-curiosity-question",
+      sectionId: "s1",
+      questionType: "why",
+      question: "Why does this happen?",
+      answer: "Because of X.",
+    });
+    expect(patch).toEqual({
+      op: "add-curiosity-question",
+      sectionId: "s1",
+      questionType: "why",
+      question: "Why does this happen?",
+      answer: "Because of X.",
+    });
+  });
+
   it("returns null for an op missing its required fields", () => {
     expect(toLessonPatch({ op: "replace-explanation" })).toBeNull();
   });

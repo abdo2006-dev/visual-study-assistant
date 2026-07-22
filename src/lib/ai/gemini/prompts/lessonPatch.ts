@@ -34,6 +34,7 @@ export const lessonPatchResponseSchema = {
               "update-visual-parameters",
               "add-visual",
               "remove-section",
+              "add-curiosity-question",
               "add-prerequisite",
             ],
           },
@@ -46,6 +47,9 @@ export const lessonPatchResponseSchema = {
           educationalPurpose: { type: Type.STRING },
           accessibilityDescription: { type: Type.STRING },
           parametersJson: { type: Type.STRING },
+          questionType: { type: Type.STRING, enum: ["why", "how", "what"] },
+          question: { type: Type.STRING },
+          answer: { type: Type.STRING },
           prerequisite: { type: Type.STRING },
         },
         required: ["op"],
@@ -66,6 +70,9 @@ const rawPatchSchema = z.object({
   educationalPurpose: z.string().optional(),
   accessibilityDescription: z.string().optional(),
   parametersJson: z.string().optional(),
+  questionType: z.string().optional(),
+  question: z.string().optional(),
+  answer: z.string().optional(),
   prerequisite: z.string().optional(),
 });
 
@@ -85,6 +92,7 @@ You can make these kinds of changes ("patches"), each identified by its "op":
 - update-visual-parameters: change an existing visual's parameters (sectionId, visualId, parametersJson — a JSON-encoded object string of ONLY the fields to change)
 - add-visual: add a new visual to a section (sectionId, type, templateId, title, educationalPurpose, accessibilityDescription, parametersJson — a JSON-encoded object string)
 - remove-section: delete an entire section (sectionId)
+- add-curiosity-question: attach a persistent, collapsible why/how/what follow-up to a section, shown alongside it from then on (sectionId, questionType: "why"/"how"/"what", question, answer)
 - add-prerequisite: add a prerequisite topic to the lesson (prerequisite)
 
 For add-visual and update-visual-parameters, templateId must be one of these, and parametersJson must use ONLY that template's own parameter fields (a JSON-encoded object string, omitted fields fall back to defaults):
@@ -93,7 +101,9 @@ ${TEMPLATE_DESCRIPTIONS}
 
 If none of these genuinely match what the user is asking for, don't invent a templateId or force the closest-but-wrong one — explain in your reply that it isn't available yet instead, and return no patch for that request.
 
-Only reference section/visual ids that actually exist in the lesson below. If the user's request doesn't require changing the lesson (e.g. they're asking a question), return an empty patches array and just answer in your reply.
+If the user is asking "why", "how", or "what" about something already in the lesson — e.g. "why isn't the field zero there too?" — answer it in your reply AND return an add-curiosity-question patch for the section it's about, so the explanation stays attached to the lesson instead of only living in the chat transcript. Skip the patch (but still answer) if that section's existingCuriosityQuestions already covers essentially the same question. Reason from the lesson's own content or standard, well-established knowledge — never invent facts. For anything else that doesn't require changing the lesson (e.g. a general question unrelated to any section), return an empty patches array and just answer in your reply.
+
+Only reference section/visual ids that actually exist in the lesson below.
 
 Your "reply" must describe only what the "patches" array you're returning actually contains — never claim a change was made unless there's a corresponding patch for it in this same response.
 

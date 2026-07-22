@@ -18,6 +18,21 @@ export const importantTermSchema = z.object({
   definition: z.string().min(1),
 });
 
+export const curiosityQuestionTypeSchema = z.enum(["why", "how", "what"]);
+
+/**
+ * A proactive follow-up the AI anticipates a curious student would ask about
+ * a section — mainly "why" (the reasoning behind a claim), occasionally
+ * "how"/"what" — shown collapsed by default so it doesn't clutter a section
+ * that doesn't need it. See AI_PIPELINE.md's "Curiosity questions" section.
+ */
+export const curiosityQuestionSchema = z.object({
+  id: z.string().min(1),
+  type: curiosityQuestionTypeSchema,
+  question: z.string().min(1),
+  answer: z.string().min(1),
+});
+
 export const lessonSectionSchema = z.object({
   id: z.string().min(1),
   heading: z.string().optional(),
@@ -26,6 +41,7 @@ export const lessonSectionSchema = z.object({
   importantTerms: z.array(importantTermSchema).default([]),
   equations: z.array(equationBlockSchema).default([]),
   visuals: z.array(visualBlockSchema).default([]),
+  curiosityQuestions: z.array(curiosityQuestionSchema).default([]),
 });
 
 export const visualLessonSchema = z.object({
@@ -45,5 +61,6 @@ export const visualLessonSchema = z.object({
 
 export type LessonSource = z.infer<typeof lessonSourceSchema>;
 export type ImportantTerm = z.infer<typeof importantTermSchema>;
+export type CuriosityQuestion = z.infer<typeof curiosityQuestionSchema>;
 export type LessonSection = z.infer<typeof lessonSectionSchema>;
 export type VisualLesson = z.infer<typeof visualLessonSchema>;

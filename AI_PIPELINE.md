@@ -172,6 +172,31 @@ invalid parameters). Two things keep this honest:
   is saved, and `LessonChatPanel` surfaces exactly which patches failed
   and why, rather than trusting the model's narration.
 
+## Curiosity questions
+
+A section's `curiosityQuestions` array holds proactive why/how/what
+follow-ups the AI anticipates a curious student would ask — e.g. "the
+potential is zero here, but why isn't the field also zero?" — each shown
+as a collapsed-by-default box (`CuriosityQuestions`,
+`src/components/lesson/curiosity-questions.tsx`) so it doesn't clutter a
+section that's already self-contained. Two paths add them:
+
+- **Lesson generation** (`createLessonPlan`): the prompt is told to add
+  0-3 per section, mostly "why", only where a claim would genuinely leave
+  a sharp student unsatisfied — most sections should get none.
+- **Chat** (`modifyLesson`): if the student asks a "why"/"how"/"what"
+  about existing content, the prompt is told to both answer in its reply
+  *and* return an `add-curiosity-question` patch, so the explanation
+  stays attached to the lesson instead of only living in the chat
+  transcript that scrolls away. `condenseLessonForChat` includes each
+  section's existing question text (not the answers) so the model can
+  skip a patch for something already covered rather than duplicating it.
+
+Both paths reuse the same `curiosityQuestionSchema` (`src/lib/schema/lesson.ts`)
+and the same honesty rule as every other patch: never invented facts,
+reasoning only from the section's own content or standard, well-established
+knowledge.
+
 ## Keeping requests small
 
 Full `VisualLesson` objects carry a lot the AI doesn't need for chat,

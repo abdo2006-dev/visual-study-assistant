@@ -11,6 +11,8 @@ export interface CondensedSection {
   heading?: string;
   simplifiedExplanation: string;
   visuals: CondensedVisual[];
+  /** Questions already covered by an existing curiosity box, so the AI doesn't add a duplicate. */
+  existingCuriosityQuestions: string[];
 }
 
 export interface CondensedLesson {
@@ -42,6 +44,7 @@ export function condenseLessonForChat(lesson: VisualLesson): CondensedLesson {
         templateId: v.templateId,
         title: v.title,
       })),
+      existingCuriosityQuestions: section.curiosityQuestions.map((q) => q.question),
     })),
   };
 }

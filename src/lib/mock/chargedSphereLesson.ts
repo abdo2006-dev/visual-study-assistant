@@ -56,6 +56,7 @@ export function createChargedSphereMockLesson(): VisualLesson {
           },
         ],
         visuals: [],
+        curiosityQuestions: [],
       },
       {
         id: "region-outside",
@@ -79,6 +80,16 @@ export function createChargedSphereMockLesson(): VisualLesson {
           },
         ],
         visuals: [],
+        curiosityQuestions: [
+          {
+            id: "why-outside-looks-like-point-charge",
+            type: "why",
+            question:
+              "Why does the sphere behave exactly like a point charge from outside, even though the charge is spread through a volume?",
+            answer:
+              "Gauss's law only depends on how much charge is enclosed by the Gaussian surface at radius r, not on how that charge is arranged inside it. For any r > R, the entire charge Q is enclosed, so the enclosed charge is identical to the case where all of Q sits at a single point at the center — Gauss's law then gives the exact same field either way.",
+          },
+        ],
       },
       {
         id: "continuity-at-surface",
@@ -99,6 +110,15 @@ export function createChargedSphereMockLesson(): VisualLesson {
           },
         ],
         visuals: [],
+        curiosityQuestions: [
+          {
+            id: "why-potential-must-be-continuous",
+            type: "why",
+            question: "Why must the potential be continuous at r = R instead of possibly jumping?",
+            answer:
+              "The electric field is the rate of change of the potential, so a jump in potential right at r = R would mean an infinite field at that single radius. An infinite field there would require an infinite surface charge concentrated exactly at r = R, which isn't present in this uniformly charged sphere — so the potential can't actually jump.",
+          },
+        ],
       },
       {
         id: "interactive-exploration",
@@ -134,6 +154,7 @@ export function createChargedSphereMockLesson(): VisualLesson {
             generationStatus: "ready",
           },
         ],
+        curiosityQuestions: [],
       },
     ],
     createdAt: now,

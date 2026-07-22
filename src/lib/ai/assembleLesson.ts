@@ -40,6 +40,10 @@ export function assembleLesson(
         ...equation,
       })),
       visuals: [],
+      curiosityQuestions: section.curiosityQuestions.map((question) => ({
+        id: crypto.randomUUID(),
+        ...question,
+      })),
     })),
     createdAt: now,
     updatedAt: now,
