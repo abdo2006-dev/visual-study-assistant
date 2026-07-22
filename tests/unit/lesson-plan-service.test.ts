@@ -103,4 +103,36 @@ describe("generateLessonPlan", () => {
     const result = await generateLessonPlan(provider, { sourceText: "hello world" });
     expect(result).toEqual(lesson);
   });
+
+  it("calls onProgress at each phase boundary, in order", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const { provider } = makeFakeProvider();
+    const messages: string[] = [];
+
+    await generateLessonPlan(
+      provider,
+      { sourceText: "onprogress test text" },
+      { onProgress: (message) => messages.push(message) }
+    );
+
+    expect(messages).toEqual([
+      "Reading your text and drafting sections...",
+      "Choosing visuals for each section...",
+    ]);
+  });
+
+  it("does not call onProgress again for a cached (repeat) request", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const { provider } = makeFakeProvider();
+    const messages: string[] = [];
+    const onProgress = (message: string) => messages.push(message);
+
+    await generateLessonPlan(provider, { sourceText: "cached progress text" }, { onProgress });
+    await generateLessonPlan(provider, { sourceText: "cached progress text" }, { onProgress });
+
+    expect(messages).toEqual([
+      "Reading your text and drafting sections...",
+      "Choosing visuals for each section...",
+    ]);
+  });
 });

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
+import { readProgressStream } from "@/lib/ai/readProgressStream";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
 import { visualLessonSchema } from "@/lib/schema/lesson";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
@@ -11,15 +13,19 @@ import { saveLesson } from "@/lib/storage/lessonRepository";
 
 import { ScreenshotUploader } from "./screenshot-uploader";
 
+const DEFAULT_GENERATING_MESSAGE = "Sending your text...";
+
 export function NewLessonForm() {
   const router = useRouter();
   const [entryMode, setEntryMode] = useState<"text" | "upload">("text");
   const [sourceText, setSourceText] = useState("");
   const [screenshotDataUrls, setScreenshotDataUrls] = useState<string[] | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(DEFAULT_GENERATING_MESSAGE);
   const [error, setError] = useState<string | null>(null);
   const [exampleLoading, setExampleLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const elapsedSeconds = useElapsedSeconds(generating);
 
   function handleSourceTextChange(value: string) {
     setSourceText(value);
@@ -42,6 +48,7 @@ export function NewLessonForm() {
     }
 
     setGenerating(true);
+    setStatusMessage(DEFAULT_GENERATING_MESSAGE);
     setError(null);
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -54,10 +61,14 @@ export function NewLessonForm() {
         signal: controller.signal,
       });
 
-      const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to generate the lesson.");
+        // A platform-level failure (e.g. a hard function timeout) rather
+        // than one of our own streamed error events.
+        const fallback = await response.json().catch(() => null);
+        throw new Error(fallback?.error ?? "Failed to generate the lesson.");
       }
+
+      const body = await readProgressStream<{ apiUsage?: unknown }>(response, setStatusMessage);
       recordApiUsageFromResponseBody("lesson-plan", body);
 
       const lesson = visualLessonSchema.parse(body);
@@ -138,18 +149,26 @@ export function NewLessonForm() {
             </p>
           )}
 
-          <div className="flex items-center gap-3">
-            <Button onClick={handleGenerate} disabled={generating}>
-              {generating ? "Generating..." : "Generate lesson"}
-            </Button>
-            {generating ? (
-              <Button variant="outline" onClick={handleCancel}>
-                Cancel
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <Button onClick={handleGenerate} disabled={generating}>
+                {generating ? "Generating..." : "Generate lesson"}
               </Button>
-            ) : (
-              <Button variant="outline" onClick={() => setEntryMode("upload")}>
-                Upload screenshot
-              </Button>
+              {generating ? (
+                <Button variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setEntryMode("upload")}>
+                  Upload screenshot
+                </Button>
+              )}
+            </div>
+            {generating && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+                <span className="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                {statusMessage} ({elapsedSeconds}s{elapsedSeconds > 15 ? " — usually takes 10-20s" : ""})
+              </p>
             )}
           </div>
         </>

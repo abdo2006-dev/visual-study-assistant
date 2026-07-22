@@ -3,9 +3,8 @@ import { z } from "zod";
 
 import { economyModeSchema } from "@/lib/ai/config";
 import { GeminiProvider } from "@/lib/ai/gemini/geminiProvider";
-import { jsonWithUsage } from "@/lib/ai/jsonWithUsage";
 import { generateLessonPlan } from "@/lib/ai/lessonPlanService";
-import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
+import { streamWithProgress } from "@/lib/ai/streamWithProgress";
 
 export const runtime = "nodejs";
 
@@ -37,20 +36,17 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => timeoutController.abort(), TIMEOUT_MS);
   const signal = AbortSignal.any([request.signal, timeoutController.signal]);
 
-  try {
-    return await jsonWithUsage(() =>
-      generateLessonPlan(new GeminiProvider(), {
-        sourceText: parsedBody.data.sourceText,
-        mode: parsedBody.data.mode,
-        signal,
-      })
-    );
-  } catch (err) {
-    return mapAiErrorToResponse(err, {
-      timedOut: timeoutController.signal.aborted,
+  return streamWithProgress(
+    (onProgress) =>
+      generateLessonPlan(
+        new GeminiProvider(),
+        { sourceText: parsedBody.data.sourceText, mode: parsedBody.data.mode, signal },
+        { onProgress }
+      ),
+    {
+      timedOut: () => timeoutController.signal.aborted,
       logPrefix: "[lesson-plan]",
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+      onSettled: () => clearTimeout(timeout),
+    }
+  );
 }

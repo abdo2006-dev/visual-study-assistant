@@ -32,6 +32,29 @@ export interface ApiUsageRecord {
   totalTokens: number;
 }
 
+export type BulkImportLessonStatus =
+  | "pending"
+  | "generating"
+  | "success"
+  | "error"
+  | "cancelled"
+  /** The tab was closed/refreshed while this lesson was still pending or generating. */
+  | "interrupted";
+
+export interface BulkImportBatchLesson {
+  title: string;
+  status: BulkImportLessonStatus;
+  lessonId?: string;
+  error?: string;
+}
+
+export interface BulkImportBatch {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  lessons: BulkImportBatchLesson[];
+}
+
 interface VisualStudyAssistantDB extends DBSchema {
   lessons: {
     key: string;
@@ -51,10 +74,15 @@ interface VisualStudyAssistantDB extends DBSchema {
     value: ApiUsageRecord;
     indexes: { "by-timestamp": string };
   };
+  bulkImportBatches: {
+    key: string;
+    value: BulkImportBatch;
+    indexes: { "by-updatedAt": string };
+  };
 }
 
 const DB_NAME = "visual-study-assistant";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase<VisualStudyAssistantDB>> | null = null;
 
@@ -81,6 +109,10 @@ export function getDb(): Promise<IDBPDatabase<VisualStudyAssistantDB>> {
         if (!db.objectStoreNames.contains("apiUsage")) {
           const store = db.createObjectStore("apiUsage", { keyPath: "id" });
           store.createIndex("by-timestamp", "timestamp");
+        }
+        if (!db.objectStoreNames.contains("bulkImportBatches")) {
+          const store = db.createObjectStore("bulkImportBatches", { keyPath: "id" });
+          store.createIndex("by-updatedAt", "updatedAt");
         }
       },
     });

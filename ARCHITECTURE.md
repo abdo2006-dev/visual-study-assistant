@@ -99,7 +99,7 @@ without each component fetching independently and drifting out of sync.
 
 ## Storage
 
-Four IndexedDB object stores (`src/lib/storage/db.ts`), each with its own
+Five IndexedDB object stores (`src/lib/storage/db.ts`), each with its own
 thin repository module:
 
 - **lessons** (keyPath `id`) — the actual `VisualLesson` documents.
@@ -113,6 +113,12 @@ thin repository module:
   from each AI route's response and pruned past 90 days
   (`apiUsageRepository.ts`) — see AI_PIPELINE.md for how the server gets
   that data to the client in the first place.
+- **bulkImportBatches** (keyPath `id`, indexed by `updatedAt`) — one
+  entry per bulk-import batch, with each proposed lesson's live
+  title/status/lessonId/error, updated write-through as generation
+  progresses (`bulkImportBatchRepository.ts`) — so a refresh mid-batch
+  doesn't erase visibility into what already finished, even though the
+  in-flight requests themselves can't be resumed.
 
 Screenshots are stored inline as base64 data URLs on
 `lesson.source.originalImages` (one per screenshot, in upload order)

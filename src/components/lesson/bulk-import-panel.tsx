@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
+import { readProgressStream } from "@/lib/ai/readProgressStream";
 import { visualLessonSchema } from "@/lib/schema/lesson";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
+import {
+  createBatch,
+  getRecentBatches,
+  markStaleBatchesInterrupted,
+  updateBatchLessons,
+} from "@/lib/storage/bulkImportBatchRepository";
+import type { BulkImportBatch, BulkImportLessonStatus } from "@/lib/storage/db";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 
 interface ProposedLesson {
@@ -15,16 +24,25 @@ interface ProposedLesson {
   included: boolean;
 }
 
-type GenerationStatus = "pending" | "generating" | "success" | "error" | "cancelled";
-
 interface GenerationResult {
   title: string;
-  status: GenerationStatus;
+  status: BulkImportLessonStatus;
   lessonId?: string;
   error?: string;
+  /** Live phase text while status === "generating" (e.g. "Choosing visuals..."). */
+  statusMessage?: string;
 }
 
 type Step = "input" | "review" | "generating" | "done";
+
+const STATUS_LABEL: Record<BulkImportLessonStatus, string> = {
+  pending: "Waiting...",
+  generating: "Generating...",
+  success: "Done",
+  error: "Failed",
+  cancelled: "Cancelled",
+  interrupted: "Interrupted (tab closed before it finished)",
+};
 
 export function BulkImportPanel() {
   const [step, setStep] = useState<Step>("input");
@@ -33,8 +51,28 @@ export function BulkImportPanel() {
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<GenerationResult[]>([]);
+  const [recentBatches, setRecentBatches] = useState<BulkImportBatch[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
+  const batchIdRef = useRef<string | null>(null);
+  const elapsedSeconds = useElapsedSeconds(step === "generating");
+
+  useEffect(() => {
+    markStaleBatchesInterrupted()
+      .then(() => getRecentBatches())
+      .then(setRecentBatches)
+      .catch(() => {
+        // Best-effort history — never block the rest of the page on it.
+      });
+  }, []);
+
+  async function refreshRecentBatches() {
+    try {
+      setRecentBatches(await getRecentBatches());
+    } catch {
+      // Ignore — history is a convenience, not load-bearing.
+    }
+  }
 
   async function handleFileChosen(file: File) {
     setError(null);
@@ -94,6 +132,15 @@ export function BulkImportPanel() {
     cancelledRef.current = true;
   }
 
+  function toBatchLessons(current: GenerationResult[]) {
+    return current.map(({ title, status, lessonId, error: lessonError }) => ({
+      title,
+      status,
+      lessonId,
+      error: lessonError,
+    }));
+  }
+
   async function handleGenerate() {
     const toGenerate = proposed.filter((lesson) => lesson.included);
     if (toGenerate.length === 0) {
@@ -103,24 +150,38 @@ export function BulkImportPanel() {
 
     cancelledRef.current = false;
     setError(null);
-    setResults(toGenerate.map((lesson) => ({ title: lesson.title, status: "pending" })));
+    const initialResults: GenerationResult[] = toGenerate.map((lesson) => ({
+      title: lesson.title,
+      status: "pending",
+    }));
+    setResults(initialResults);
     setStep("generating");
+
+    const batch = await createBatch(toBatchLessons(initialResults));
+    batchIdRef.current = batch.id;
+    void refreshRecentBatches();
 
     for (let i = 0; i < toGenerate.length; i++) {
       if (cancelledRef.current) {
-        setResults((current) =>
-          current.map((result, index) =>
+        setResults((current) => {
+          const next = current.map((result, index) =>
             index >= i && result.status === "pending"
-              ? { ...result, status: "cancelled" }
+              ? { ...result, status: "cancelled" as const }
               : result
-          )
-        );
+          );
+          if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+          return next;
+        });
         break;
       }
 
-      setResults((current) =>
-        current.map((result, index) => (index === i ? { ...result, status: "generating" } : result))
-      );
+      setResults((current) => {
+        const next = current.map((result, index) =>
+          index === i ? { ...result, status: "generating" as const, statusMessage: "Sending your text..." } : result
+        );
+        if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+        return next;
+      });
 
       const proposedLesson = toGenerate[i];
       try {
@@ -129,37 +190,48 @@ export function BulkImportPanel() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sourceText: proposedLesson.sourceText }),
         });
-        const body = await response.json();
         if (!response.ok) {
-          throw new Error(body.error ?? "Failed to generate this lesson.");
+          const fallback = await response.json().catch(() => null);
+          throw new Error(fallback?.error ?? "Failed to generate this lesson.");
         }
+
+        const body = await readProgressStream<{ apiUsage?: unknown }>(response, (message) => {
+          setResults((current) =>
+            current.map((result, index) => (index === i ? { ...result, statusMessage: message } : result))
+          );
+        });
         recordApiUsageFromResponseBody("lesson-plan", body);
 
         const lesson = visualLessonSchema.parse(body);
         lesson.title = proposedLesson.title;
         const saved = await saveLesson(lesson);
 
-        setResults((current) =>
-          current.map((result, index) =>
-            index === i ? { ...result, status: "success", lessonId: saved.id } : result
-          )
-        );
+        setResults((current) => {
+          const next = current.map((result, index) =>
+            index === i ? { ...result, status: "success" as const, lessonId: saved.id } : result
+          );
+          if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+          return next;
+        });
       } catch (err) {
-        setResults((current) =>
-          current.map((result, index) =>
+        setResults((current) => {
+          const next = current.map((result, index) =>
             index === i
               ? {
                   ...result,
-                  status: "error",
+                  status: "error" as const,
                   error: err instanceof Error ? err.message : "Failed to generate this lesson.",
                 }
               : result
-          )
-        );
+          );
+          if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+          return next;
+        });
       }
     }
 
     setStep("done");
+    void refreshRecentBatches();
   }
 
   function handleStartOver() {
@@ -168,6 +240,7 @@ export function BulkImportPanel() {
     setProposed([]);
     setResults([]);
     setError(null);
+    batchIdRef.current = null;
   }
 
   const includedCount = proposed.filter((lesson) => lesson.included).length;
@@ -206,6 +279,44 @@ export function BulkImportPanel() {
               }}
             />
           </div>
+
+          {recentBatches.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
+              <p className="text-sm font-medium">Recent imports</p>
+              <ul className="flex flex-col gap-2">
+                {recentBatches.map((recentBatch) => {
+                  const successCount = recentBatch.lessons.filter((l) => l.status === "success").length;
+                  return (
+                    <li key={recentBatch.id} className="rounded-md border border-border p-3">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(recentBatch.updatedAt).toLocaleString()} —{" "}
+                        {successCount} of {recentBatch.lessons.length} generated
+                      </p>
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {recentBatch.lessons.map((lesson, i) => (
+                          <li key={i} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="truncate">{lesson.title}</span>
+                            {lesson.status === "success" && lesson.lessonId ? (
+                              <Link
+                                href={`/lessons/${lesson.lessonId}`}
+                                className="shrink-0 text-xs font-medium text-primary underline underline-offset-2"
+                              >
+                                View
+                              </Link>
+                            ) : (
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {STATUS_LABEL[lesson.status]}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -264,9 +375,12 @@ export function BulkImportPanel() {
 
       {(step === "generating" || step === "done") && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium">
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            {step === "generating" && (
+              <span className="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+            )}
             {step === "generating"
-              ? `Generating ${results.filter((r) => r.status === "success" || r.status === "error").length + 1} of ${results.length}...`
+              ? `Generating ${results.filter((r) => r.status === "success" || r.status === "error").length + 1} of ${results.length}... (${elapsedSeconds}s)`
               : `Generated ${results.filter((r) => r.status === "success").length} of ${results.length} lesson${results.length === 1 ? "" : "s"}.`}
           </p>
           <ul className="flex flex-col gap-2">
@@ -285,7 +399,9 @@ export function BulkImportPanel() {
                   </Link>
                 )}
                 {result.status === "generating" && (
-                  <span className="shrink-0 text-xs text-muted-foreground">Generating...</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {result.statusMessage ?? "Generating..."}
+                  </span>
                 )}
                 {result.status === "pending" && (
                   <span className="shrink-0 text-xs text-muted-foreground">Waiting...</span>

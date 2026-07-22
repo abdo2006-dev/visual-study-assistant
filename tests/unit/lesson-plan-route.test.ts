@@ -24,6 +24,16 @@ function postRequest(body: unknown, signal?: AbortSignal) {
   });
 }
 
+/** The route always streams NDJSON now — reads every line and returns them all. */
+async function readLines(response: Response): Promise<Record<string, unknown>[]> {
+  const text = await response.text();
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
 describe("POST /api/lesson-plan", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -50,7 +60,7 @@ describe("POST /api/lesson-plan", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns 200 with the generated lesson on success", async () => {
+  it("streams the generated lesson as the final result event", async () => {
     const lesson = createChargedSphereMockLesson();
     createLessonPlan.mockResolvedValueOnce(lesson);
 
@@ -58,11 +68,13 @@ describe("POST /api/lesson-plan", () => {
     const response = await POST(postRequest({ sourceText: "explain gravity" }));
 
     expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.title).toBe(lesson.title);
+    const lines = await readLines(response);
+    const result = lines.at(-1);
+    expect(result?.type).toBe("result");
+    expect(result?.title).toBe(lesson.title);
   });
 
-  it("returns 502 when the provider fails to produce a valid lesson", async () => {
+  it("streams a final error event (not an HTTP error status) when the provider fails", async () => {
     const { AiGenerationError } = await import("@/lib/ai/gemini/geminiProvider");
     createLessonPlan.mockRejectedValueOnce(
       new AiGenerationError("model returned garbage")
@@ -70,21 +82,29 @@ describe("POST /api/lesson-plan", () => {
 
     const { POST } = await import("@/app/api/lesson-plan/route");
     const response = await POST(postRequest({ sourceText: "explain gravity" }));
-    expect(response.status).toBe(502);
+
+    expect(response.status).toBe(200);
+    const lines = await readLines(response);
+    const result = lines.at(-1);
+    expect(result?.type).toBe("error");
+    expect(result?.status).toBe(502);
   });
 
-  it("returns 500 without leaking details when the API key is missing", async () => {
+  it("streams a 500 error without leaking details when the API key is missing", async () => {
     const { MissingApiKeyError } = await import("@/lib/ai/config");
     createLessonPlan.mockRejectedValueOnce(new MissingApiKeyError());
 
     const { POST } = await import("@/app/api/lesson-plan/route");
     const response = await POST(postRequest({ sourceText: "explain gravity" }));
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.error).not.toMatch(/gho_|AIza|sk-/);
+
+    const lines = await readLines(response);
+    const result = lines.at(-1) as { type: string; status: number; error: string };
+    expect(result.type).toBe("error");
+    expect(result.status).toBe(500);
+    expect(result.error).not.toMatch(/gho_|AIza|sk-/);
   });
 
-  it("returns 429 after exceeding the rate limit", async () => {
+  it("streams a 429 error event after exceeding the rate limit", async () => {
     createLessonPlan.mockImplementation(async () =>
       createChargedSphereMockLesson()
     );
@@ -93,12 +113,14 @@ describe("POST /api/lesson-plan", () => {
     let lastStatus = 0;
     for (let i = 0; i < 11; i++) {
       const response = await POST(postRequest({ sourceText: `explain topic ${i}` }));
-      lastStatus = response.status;
+      const lines = await readLines(response);
+      const result = lines.at(-1) as { type: string; status?: number };
+      lastStatus = result.type === "error" ? (result.status ?? 0) : 200;
     }
     expect(lastStatus).toBe(429);
   });
 
-  it("returns 504 when generation exceeds the timeout", async () => {
+  it("streams a 504 error event when generation exceeds the timeout", async () => {
     process.env.LESSON_PLAN_TIMEOUT_MS = "20";
     createLessonPlan.mockImplementation(
       (input: { signal?: AbortSignal }) =>
@@ -112,7 +134,23 @@ describe("POST /api/lesson-plan", () => {
     const { POST } = await import("@/app/api/lesson-plan/route");
     const response = await POST(postRequest({ sourceText: "explain gravity" }));
 
-    expect(response.status).toBe(504);
+    const lines = await readLines(response);
+    const result = lines.at(-1) as { type: string; status?: number };
+    expect(result.type).toBe("error");
+    expect(result.status).toBe(504);
     delete process.env.LESSON_PLAN_TIMEOUT_MS;
+  });
+
+  it("emits progress events before the final result", async () => {
+    const lesson = createChargedSphereMockLesson();
+    createLessonPlan.mockResolvedValueOnce(lesson);
+
+    const { POST } = await import("@/app/api/lesson-plan/route");
+    const response = await POST(postRequest({ sourceText: "explain gravity" }));
+    const lines = await readLines(response);
+
+    const progressMessages = lines.filter((line) => line.type === "progress");
+    expect(progressMessages.length).toBeGreaterThan(0);
+    expect(lines.at(-1)?.type).toBe("result");
   });
 });

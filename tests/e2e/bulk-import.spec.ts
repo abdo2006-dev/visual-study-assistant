@@ -74,6 +74,41 @@ test("proposes lessons, lets the user exclude one, and generates the rest", asyn
   await expect(page).toHaveURL(/\/lessons\/bulk-lesson-1$/);
 });
 
+test("batch history survives a reload, with a working link to the generated lesson", async ({
+  page,
+}) => {
+  await page.route("**/api/bulk-import-plan", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        lessons: [
+          { title: "Gauss's Law", sourceText: "Gauss's law relates electric flux to enclosed charge." },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/lesson-plan", async (route) => {
+    await route.fulfill({ status: 200, json: mockLessonFor("Gauss's Law", "history-lesson-1") });
+  });
+
+  await page.goto("/bulk-import");
+  await page
+    .getByPlaceholder("Paste a large block of study material here — several topics' worth is fine...")
+    .fill(SOURCE_TEXT);
+  await page.getByRole("button", { name: "Propose lessons" }).click();
+  await page.getByRole("button", { name: "Generate 1 lesson" }).click();
+  await expect(page.getByText("Generated 1 of 1 lesson.")).toBeVisible();
+
+  // Reload straight to a fresh /bulk-import — the in-memory component state
+  // is gone, but the batch's outcome should still be visible from IndexedDB.
+  await page.goto("/bulk-import");
+  await expect(page.getByText("Recent imports")).toBeVisible();
+  await expect(page.getByText(/1 of 1 generated/)).toBeVisible();
+
+  await page.getByRole("link", { name: "View" }).click();
+  await expect(page).toHaveURL(/\/lessons\/history-lesson-1$/);
+});
+
 test("shows a per-lesson error but still completes the rest of the batch", async ({ page }) => {
   await page.route("**/api/bulk-import-plan", async (route) => {
     await route.fulfill({

@@ -68,6 +68,23 @@ new test's pass/fail depend on real network access.
   verification (`tests/unit/bulk-import-plan-service.test.ts`); an e2e
   test covers the full propose → review (exclude one) → generate flow,
   plus a partial-batch-failure case.
+- **Streaming progress**: `streamWithProgress` (progress lines + a final
+  result/error line, always HTTP 200, `apiUsage` attached, `onSettled`
+  fires once) and `readProgressStream` (calls `onProgress` for progress
+  lines, throws on an error line, and — critically — treats a plain
+  object with no `type` field as the result outright, which is what lets
+  every existing `route.fulfill({ json: {...} })` mock keep working
+  unchanged); `lesson-plan-route.test.ts` asserts errors now arrive as a
+  streamed `{ type: "error", status }` line rather than an HTTP error
+  status. One e2e test builds a real multi-line NDJSON body by hand to
+  confirm the client parses genuine streamed output, not just the
+  flat-JSON degenerate case.
+- **Bulk-import batch history**: `bulkImportBatchRepository`'s
+  create/update/query behavior against `fake-indexeddb`, plus
+  `markStaleBatchesInterrupted` relabeling anything left
+  pending/generating; an e2e test generates a batch, reloads straight to
+  a fresh `/bulk-import`, and confirms the completed lesson still shows
+  under "Recent imports" with a working link.
 - **Route handlers**: called directly as functions (`POST(request)`), no
   real Next.js server needed — malformed JSON, missing fields, and every
   mapped error status (400/429/500/502/504) per route.

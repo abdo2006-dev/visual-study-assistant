@@ -46,6 +46,14 @@
   `electric-dipole` gained a second mode, `far-field-comparison`, for
   axial-vs-equatorial field content the original torque-only template
   didn't cover.
+- **Milestone 14** — lesson generation streams live progress instead of
+  sitting silently: `/api/lesson-plan` now sends staged status messages
+  ("Reading your text...", "Choosing visuals...") over a newline-delimited
+  JSON response, shown next to an elapsed-time counter on both the New
+  Lesson page and Bulk Import — see AI_PIPELINE.md's "Streaming progress"
+  section. Bulk-import batches are also now persisted to IndexedDB as
+  they run, with a "Recent imports" history shown on the page, so a
+  refresh no longer erases visibility into what already generated.
 
 ## Known limitations / deliberately out of scope
 
@@ -80,6 +88,12 @@
   it means a batch of many lessons takes a while and can't be sped up
   from the UI. Capped at 60,000 characters of input and 20 proposed
   lessons per batch.
+- **A bulk-import batch can't be resumed after a page reload** — the
+  in-flight requests get cancelled by the navigation, and there's no
+  server-side job queue to pick back up from. The batch's history
+  persists (see Milestone 14), so nothing already generated is lost, but
+  any lesson still pending/generating when the tab closed has to be
+  re-run from scratch.
 - **Rate limiting is per-process**, not distributed — see the Vercel
   caveat in SECURITY.md.
 - **The Cloudflare deployment option wasn't pursued.** The app is

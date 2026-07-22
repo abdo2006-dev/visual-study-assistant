@@ -37,6 +37,39 @@ own Zod schema. Visual planning has no route of its own — `generateLessonPlan`
 after `provider.createLessonPlan`, so a single `POST /api/lesson-plan` request
 still returns a lesson with visuals already attached.
 
+## Streaming progress instead of a silent wait
+
+Lesson planning is the slowest operation (two Gemini calls back to back —
+`createLessonPlan` then `planVisuals` — often 10-20s total) and the one
+users most need live feedback on, so `/api/lesson-plan` streams instead
+of returning one JSON blob:
+
+- `generateLessonPlan` takes an optional `onProgress` callback
+  (`GenerateLessonPlanOptions`), invoked at each phase boundary — never
+  called on a cache hit, since that resolves near-instantly.
+- The route wraps its work in `streamWithProgress`
+  (`src/lib/ai/streamWithProgress.ts`), which turns those callbacks into
+  a newline-delimited JSON response: any number of
+  `{ type: "progress", message }` lines, then exactly one
+  `{ type: "result", ...lesson, apiUsage }` or `{ type: "error", status, error }`
+  line. The initial HTTP response is always `200` — status codes that
+  used to live on the response itself (400/429/500/502/504) now travel
+  inside that final `error` event, still produced by the same
+  `mapAiErrorToResponse` every other route uses.
+- The client reads it with `readProgressStream`
+  (`src/lib/ai/readProgressStream.ts`), which also accepts a single flat
+  JSON object with no `type` wrapper as the final result outright — the
+  same degenerate case a `route.fulfill({ json: {...} })` test mock
+  produces, so none of the existing mocked tests needed rewriting to
+  NDJSON when this shipped.
+- `NewLessonForm` and `BulkImportPanel` show the live message next to an
+  elapsed-time counter (`useElapsedSeconds`) instead of a static
+  "Generating..." spinner, so a slow call reads as *working*, not stuck.
+
+Only `/api/lesson-plan` streams — extraction, chat, verification, and the
+bulk-import outline pass are all fast enough (one Gemini call) that this
+wasn't worth the added complexity there.
+
 ## Bulk import: outline-first, two-pass
 
 `/bulk-import` splits a large paste into several lessons without
@@ -63,6 +96,16 @@ do both:
    rather than in parallel (gentler on the shared rate limiter, and
    naturally caps concurrent Gemini calls). A failure on one lesson
    doesn't stop the rest of the batch.
+
+Each batch's progress (per-lesson title/status/lessonId/error) is
+write-through persisted to IndexedDB via `bulkImportBatchRepository.ts` as
+it happens, not just held in React state — a refresh mid-batch loses the
+in-flight requests (there's no server-side job queue to resume from), but
+not visibility into what already finished. On mount, `BulkImportPanel`
+calls `markStaleBatchesInterrupted()`, which relabels any lesson still
+`"pending"`/`"generating"` from a previous session as `"interrupted"`
+(the tab closed before it got an answer either way) before showing a
+"Recent imports" list of past batches.
 
 ## Central model configuration
 

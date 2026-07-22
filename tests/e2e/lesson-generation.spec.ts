@@ -46,6 +46,35 @@ test("generating a lesson calls the API and saves the result", async ({ page }) 
   ).toBeVisible();
 });
 
+test("parses a real multi-line NDJSON progress stream, not just a flat JSON body", async ({
+  page,
+}) => {
+  const ndjsonBody = [
+    JSON.stringify({ type: "progress", message: "Reading your text and drafting sections..." }),
+    JSON.stringify({ type: "progress", message: "Choosing visuals for each section..." }),
+    JSON.stringify({ type: "result", ...mockLesson, apiUsage: [] }),
+  ].join("\n");
+
+  await page.route("**/api/lesson-plan", async (route) => {
+    await route.fulfill({
+      status: 200,
+      body: ndjsonBody,
+      headers: { "Content-Type": "application/x-ndjson" },
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder("Paste a text explanation here...")
+    .fill("An object in motion stays in motion unless a force acts on it.");
+  await page.getByRole("button", { name: "Generate lesson" }).click();
+
+  await expect(page).toHaveURL(/\/lessons\/e2e-mock-lesson$/);
+  await expect(
+    page.getByRole("heading", { name: "Newton's First Law (mocked)" })
+  ).toBeVisible();
+});
+
 test("shows an error and preserves input when the API call fails", async ({ page }) => {
   await page.route("**/api/lesson-plan", async (route) => {
     await route.fulfill({

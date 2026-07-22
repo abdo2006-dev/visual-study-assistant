@@ -19,6 +19,16 @@ export class InvalidLessonPlanRequestError extends InvalidAiRequestError {
 const MAX_SOURCE_TEXT_LENGTH = 20_000;
 const CACHE_TTL_MS = 10 * 60_000;
 
+export interface GenerateLessonPlanOptions {
+  /**
+   * Called synchronously at each phase boundary so the route can stream a
+   * live status to the client instead of leaving it staring at a spinner
+   * for the whole (often 10-20s) round trip. Never called for a cache hit,
+   * since that resolves near-instantly and has nothing to narrate.
+   */
+  onProgress?: (message: string) => void;
+}
+
 /**
  * Provider-agnostic orchestration: validates the request, applies rate
  * limiting and content-hash caching, then delegates to whichever
@@ -27,7 +37,8 @@ const CACHE_TTL_MS = 10 * 60_000;
  */
 export async function generateLessonPlan(
   provider: LessonAIProvider,
-  input: CreateLessonPlanInput
+  input: CreateLessonPlanInput,
+  { onProgress }: GenerateLessonPlanOptions = {}
 ): Promise<VisualLesson> {
   const sourceText = input.sourceText.trim();
 
@@ -46,7 +57,9 @@ export async function generateLessonPlan(
 
   const cacheKey = await hashContent(`${input.mode ?? "economical"}::${sourceText}`);
   return withCache(cacheKey, CACHE_TTL_MS, async () => {
+    onProgress?.("Reading your text and drafting sections...");
     const lesson = await provider.createLessonPlan({ ...input, sourceText });
+    onProgress?.("Choosing visuals for each section...");
     return attachPlannedVisuals(provider, lesson, input.mode, input.signal);
   });
 }
