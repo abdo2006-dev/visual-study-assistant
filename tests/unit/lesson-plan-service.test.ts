@@ -136,3 +136,40 @@ describe("generateLessonPlan", () => {
     ]);
   });
 });
+
+describe("attachPlannedVisuals", () => {
+  it("skips planVisuals entirely when the remaining budget is too small", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const { provider, lesson, planVisuals } = makeFakeProvider();
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 1_000);
+
+    expect(planVisuals).not.toHaveBeenCalled();
+    expect(result).toEqual(lesson);
+  });
+
+  it("calls planVisuals when the remaining budget is sufficient", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const { provider, lesson, planVisuals } = makeFakeProvider();
+
+    await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
+
+    expect(planVisuals).toHaveBeenCalledTimes(1);
+  });
+
+  it("combines the caller's own abort signal with the budget timeout", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const { provider, lesson } = makeFakeProvider();
+    let seenSignal: AbortSignal | undefined;
+    provider.planVisuals = vi.fn(async ({ signal }: { signal?: AbortSignal }) => {
+      seenSignal = signal;
+      return { assignments: [] };
+    });
+
+    const controller = new AbortController();
+    controller.abort();
+    await attachPlannedVisuals(provider, lesson, undefined, controller.signal, 30_000);
+
+    expect(seenSignal?.aborted).toBe(true);
+  });
+});

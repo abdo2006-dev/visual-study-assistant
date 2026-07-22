@@ -8,6 +8,7 @@ import { verifyLesson } from "@/lib/ai/lessonVerificationService";
 import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // Vercel Hobby plan hard ceiling — matches this route's own 60s AbortController below.
 
 // Overridable so tests can exercise the timeout path without waiting 60s.
 const TIMEOUT_MS = Number(process.env.VERIFY_LESSON_TIMEOUT_MS) || 60_000;

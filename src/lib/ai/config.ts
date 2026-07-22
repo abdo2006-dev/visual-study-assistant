@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { ECONOMY_MODES, type EconomyMode } from "@/lib/ai/economyMode";
+
 /**
  * Central place for AI model configuration. Route handlers and provider
  * implementations should import from here rather than referencing model
@@ -9,9 +11,9 @@ import { z } from "zod";
  * one place (see IMPLEMENTATION_PLAN.md, Risks section).
  */
 
-export const economyModeSchema = z.enum(["economical", "balanced", "highest-quality"]);
+export const economyModeSchema = z.enum(ECONOMY_MODES);
 
-export type EconomyMode = z.infer<typeof economyModeSchema>;
+export type { EconomyMode };
 
 // Google's own rolling aliases rather than a dated model name, so this
 // doesn't go stale as specific model versions are sunset (see

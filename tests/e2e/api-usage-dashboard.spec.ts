@@ -46,6 +46,6 @@ test("logs usage from a lesson-plan response and shows it in Settings", async ({
   await expect(page).toHaveURL(/\/lessons\/e2e-usage-lesson$/);
 
   await page.goto("/settings");
-  await expect(page.getByText("gemini-flash-lite-latest")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "gemini-flash-lite-latest" })).toBeVisible();
   await expect(page.getByText("460", { exact: false })).toBeVisible();
 });

@@ -7,6 +7,7 @@ import { generateLessonPlan } from "@/lib/ai/lessonPlanService";
 import { streamWithProgress } from "@/lib/ai/streamWithProgress";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // Vercel Hobby plan hard ceiling; see lessonPlanService.ts for how the 60s budget is spent on the lesson-plan route specifically.
 
 // Overridable so tests can exercise the timeout path without waiting 60s.
 const TIMEOUT_MS = Number(process.env.LESSON_PLAN_TIMEOUT_MS) || 60_000;

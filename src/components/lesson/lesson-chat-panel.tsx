@@ -10,6 +10,7 @@ import { applyLessonPatches } from "@/lib/lessonPatch/applyLessonPatch";
 import { condenseLessonForChat } from "@/lib/lessonPatch/condenseLesson";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { type LessonPatch, lessonPatchSchema } from "@/lib/schema/patch";
+import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { appendMessage, getConversation } from "@/lib/storage/conversationRepository";
 import type { ChatMessage } from "@/lib/storage/db";
@@ -73,6 +74,7 @@ export function LessonChatPanel({
           lesson: condenseLessonForChat(lesson),
           message: trimmed,
           history,
+          mode: getEconomyModeOverride(),
         }),
         signal: controller.signal,
       });

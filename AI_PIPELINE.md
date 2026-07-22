@@ -112,9 +112,16 @@ calls `markStaleBatchesInterrupted()`, which relabels any lesson still
 `src/lib/ai/config.ts` maps three `EconomyMode`s (`economical` /
 `balanced` / `highest-quality`) to Google's rolling `-latest` model aliases
 (`gemini-flash-lite-latest`, etc.) rather than a dated model name — this is
-the one place to change if Google retires an alias. Every route defaults to
-`economical` unless the caller specifies otherwise (no UI for changing this
-yet — see ROADMAP.md).
+the one place to change if Google retires an alias. Defaults are set
+per-operation in `GeminiProvider`, split by how much the operation's output
+quality actually affects what the user sees: `createLessonPlan`,
+`planVisuals`, and `modifyLesson` (chat) default to `balanced`
+(`gemini-flash-latest`), since these drive lesson text, visual selection,
+and chat edits — the parts users notice most. `extractSource`,
+`verifyLesson`, and `planBulkImport` stay on `economical`
+(`gemini-flash-lite-latest`), where cheaper/faster output is good enough
+(OCR-style extraction, an advisory pass, and outline excerpting). No UI for
+overriding this yet — see ROADMAP.md.
 
 ## Structured output, JSON repair, and the parametersJson trick
 

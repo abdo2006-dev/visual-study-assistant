@@ -8,6 +8,7 @@ import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { readProgressStream } from "@/lib/ai/readProgressStream";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
 import { visualLessonSchema } from "@/lib/schema/lesson";
+import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 
@@ -57,7 +58,7 @@ export function NewLessonForm() {
       const response = await fetch("/api/lesson-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceText }),
+        body: JSON.stringify({ sourceText, mode: getEconomyModeOverride() }),
         signal: controller.signal,
       });
 

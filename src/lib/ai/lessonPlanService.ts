@@ -19,6 +19,18 @@ export class InvalidLessonPlanRequestError extends InvalidAiRequestError {
 const MAX_SOURCE_TEXT_LENGTH = 20_000;
 const CACHE_TTL_MS = 10 * 60_000;
 
+// Vercel's Hobby plan caps a serverless function's total run time at 60s
+// (see route.ts's `maxDuration`), and lesson planning is two sequential
+// Gemini calls (createLessonPlan, then planVisuals) inside that one
+// request. REQUEST_BUDGET_MS leaves a safety margin under that hard
+// ceiling for the response to actually get serialized and sent; if
+// planning the lesson's text already ate most of that budget, visual
+// planning gets whatever's left rather than a fixed share, and is skipped
+// outright below MIN_VISUAL_PLANNING_BUDGET_MS — a lesson with no visual
+// beats the whole request timing out with nothing at all.
+const REQUEST_BUDGET_MS = 55_000;
+const MIN_VISUAL_PLANNING_BUDGET_MS = 5_000;
+
 export interface GenerateLessonPlanOptions {
   /**
    * Called synchronously at each phase boundary so the route can stream a
@@ -55,34 +67,50 @@ export async function generateLessonPlan(
 
   checkRateLimit();
 
-  const cacheKey = await hashContent(`${input.mode ?? "economical"}::${sourceText}`);
+  const cacheKey = await hashContent(`${input.mode ?? "balanced"}::${sourceText}`);
   return withCache(cacheKey, CACHE_TTL_MS, async () => {
+    const startedAt = Date.now();
     onProgress?.("Reading your text and drafting sections...");
     const lesson = await provider.createLessonPlan({ ...input, sourceText });
     onProgress?.("Choosing visuals for each section...");
-    return attachPlannedVisuals(provider, lesson, input.mode, input.signal);
+    const remainingBudgetMs = REQUEST_BUDGET_MS - (Date.now() - startedAt);
+    return attachPlannedVisuals(provider, lesson, input.mode, input.signal, remainingBudgetMs);
   });
 }
 
 /**
  * Best-effort: a lesson is fully usable with no visuals (that's exactly
  * today's behavior), so a visual-planning failure — rate limit, timeout,
- * malformed AI output that survives generateWithRepair's one retry — must
- * never fail lesson generation itself. Any error here is swallowed (after
+ * malformed AI output that survives generateWithRepair's one retry, or
+ * simply running out of the request's remaining time budget — must never
+ * fail lesson generation itself. Any error here is swallowed (after
  * logging) and the lesson is returned exactly as createLessonPlan produced
  * it.
  */
-async function attachPlannedVisuals(
+export async function attachPlannedVisuals(
   provider: LessonAIProvider,
   lesson: VisualLesson,
   mode: EconomyMode | undefined,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  budgetMs: number
 ): Promise<VisualLesson> {
+  if (budgetMs < MIN_VISUAL_PLANNING_BUDGET_MS) {
+    console.error(
+      `[visual-planning] skipped — only ${budgetMs}ms left in the request budget, lesson will have no visuals`
+    );
+    return lesson;
+  }
+
   try {
+    const visualPlanningSignal = AbortSignal.timeout(budgetMs);
+    const combinedSignal = signal
+      ? AbortSignal.any([signal, visualPlanningSignal])
+      : visualPlanningSignal;
+
     const { assignments } = await provider.planVisuals({
       lesson: condenseLessonForVisualPlanning(lesson),
       mode,
-      signal,
+      signal: combinedSignal,
     });
 
     if (assignments.length === 0) return lesson;

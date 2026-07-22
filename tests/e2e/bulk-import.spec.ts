@@ -147,3 +147,52 @@ test("shows a per-lesson error but still completes the rest of the batch", async
   await expect(page.getByText("Gemini did not return valid output.")).toBeVisible();
   await expect(page.getByRole("link", { name: "View" })).toBeVisible();
 });
+
+test("lets the user retry a single failed lesson without redoing the whole batch", async ({
+  page,
+}) => {
+  await page.route("**/api/bulk-import-plan", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        lessons: [
+          { title: "Lesson A", sourceText: "Gauss's law relates electric flux to enclosed charge." },
+          {
+            title: "Lesson B",
+            sourceText:
+              "A dipole consists of two equal and opposite charges separated by a small distance.",
+          },
+        ],
+      },
+    });
+  });
+
+  let call = 0;
+  await page.route("**/api/lesson-plan", async (route) => {
+    call += 1;
+    // Lesson A (call 1) succeeds. Lesson B fails on the batch's first
+    // attempt (call 2) but succeeds on retry (call 3).
+    if (call === 2) {
+      await route.fulfill({ status: 502, json: { error: "The request took too long." } });
+    } else {
+      await route.fulfill({ status: 200, json: mockLessonFor(`Lesson ${call}`, `retry-lesson-${call}`) });
+    }
+  });
+
+  await page.goto("/bulk-import");
+  await page
+    .getByPlaceholder("Paste a large block of study material here — several topics' worth is fine...")
+    .fill(SOURCE_TEXT);
+  await page.getByRole("button", { name: "Propose lessons" }).click();
+  await page.getByRole("button", { name: "Generate 2 lessons" }).click();
+
+  await expect(page.getByText("Generated 1 of 2 lessons.")).toBeVisible();
+  await expect(page.getByText("The request took too long.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Retry" }).click();
+
+  await expect(page.getByText("Generated 2 of 2 lessons.")).toBeVisible();
+  await expect(page.getByText("The request took too long.")).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "View" })).toHaveCount(2);
+  expect(call).toBe(3);
+});

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { condenseLessonForVerification } from "@/lib/lessonPatch/condenseLessonForVerification";
 import type { VisualLesson } from "@/lib/schema/lesson";
 import { type LessonVerification, lessonVerificationSchema } from "@/lib/schema/verification";
+import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 
 export function LessonVerificationPanel({ lesson }: { lesson: VisualLesson }) {
@@ -20,7 +21,10 @@ export function LessonVerificationPanel({ lesson }: { lesson: VisualLesson }) {
       const response = await fetch("/api/verify-lesson", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lesson: condenseLessonForVerification(lesson) }),
+        body: JSON.stringify({
+          lesson: condenseLessonForVerification(lesson),
+          mode: getEconomyModeOverride(),
+        }),
       });
       const body = await response.json();
       if (!response.ok) {

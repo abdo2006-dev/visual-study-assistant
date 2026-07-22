@@ -59,7 +59,7 @@ export { AiGenerationError };
 export class GeminiProvider implements LessonAIProvider {
   async createLessonPlan({
     sourceText,
-    mode = "economical",
+    mode = "balanced",
     signal,
   }: CreateLessonPlanInput): Promise<VisualLesson> {
     const client = getGeminiClient();
@@ -99,7 +99,7 @@ export class GeminiProvider implements LessonAIProvider {
     lesson,
     message,
     history = [],
-    mode = "economical",
+    mode = "balanced",
     signal,
   }: ModifyLessonInput): Promise<ModifyLessonResult> {
     const client = getGeminiClient();
@@ -145,7 +145,7 @@ export class GeminiProvider implements LessonAIProvider {
     };
   }
 
-  async planVisuals({ lesson, mode = "economical", signal }: PlanVisualsInput): Promise<VisualPlan> {
+  async planVisuals({ lesson, mode = "balanced", signal }: PlanVisualsInput): Promise<VisualPlan> {
     const client = getGeminiClient();
     const model = getModelFor(mode);
 

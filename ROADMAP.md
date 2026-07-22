@@ -64,6 +64,26 @@
   name, Vercel project, and deployed domain (`visual-study-assistant.vercel.app`)
   were left unchanged — renaming those is a separate, riskier decision
   than the in-app branding.
+- **Milestone 16** — reliability and model-quality pass:
+  - Bulk-import lessons could hit Vercel's 60s Hobby-plan function-duration
+    ceiling on unusually dense excerpts (two sequential Gemini calls —
+    lesson text, then visual planning — inside one request). Fixed with a
+    request-budget split in `lessonPlanService.ts`: visual planning gets
+    whatever time is left after the lesson text finishes, and is skipped
+    outright (lesson still returns, just without a visual) if too little
+    remains — see AI_PIPELINE.md.
+  - `createLessonPlan`, `planVisuals`, and `modifyLesson` (chat) now
+    default to `"balanced"` (`gemini-flash-latest`) instead of
+    `"economical"` (`gemini-flash-lite-latest`) — the operations that most
+    affect what the user actually sees. Extraction, verification, and the
+    bulk-import outline pass stay on `"economical"`, where cheaper output
+    is already good enough.
+  - A failed lesson in a Bulk Import batch now has its own **Retry**
+    button instead of requiring the whole batch to be redone.
+  - The Settings page gained an **AI quality mode** selector
+    (Automatic/Economical/Balanced/Highest quality), persisted in
+    `localStorage` and sent as an override on every AI route call —
+    "Automatic" leaves the new per-operation defaults above in place.
 
 ## Known limitations / deliberately out of scope
 
@@ -74,9 +94,8 @@
   plausibly fits, rather than staying conservative — a section still gets
   skipped only when no template's setup genuinely matches it.
 - **Single AI provider.** `LessonAIProvider` is designed to be swappable,
-  but `GeminiProvider` is the only implementation. No UI exists to switch
-  models/providers or economy modes — every route defaults to
-  `"economical"`.
+  but `GeminiProvider` is the only implementation — the Settings mode
+  selector (Milestone 16) switches economy mode, not provider.
 - **No keyboard alternative for vector dragging.** The force-vector
   template's draggable tips are pointer-only; the rest of that template
   (and every other interactive control — sliders, buttons) is fully
@@ -84,10 +103,6 @@
 - **No automated visual-regression testing.** Mobile layout correctness
   was checked manually in-browser (Milestone 8), not via a screenshot-diff
   suite.
-- **No UI yet for switching economy mode or provider status** on the
-  Settings page (usage tracking is there now — see Milestone 11 — but
-  every route still defaults to `"economical"` with no way to change it
-  from the UI).
 - **The free-tier reference numbers on the usage dashboard are
   approximate, not authoritative.** Google doesn't publish exact
   free-tier limits on its own rate-limits page or expose a "remaining
@@ -103,7 +118,9 @@
   server-side job queue to pick back up from. The batch's history
   persists (see Milestone 14), so nothing already generated is lost, but
   any lesson still pending/generating when the tab closed has to be
-  re-run from scratch.
+  re-run from scratch. The per-lesson Retry button (Milestone 16) only
+  covers failures within the same page session — it relies on the
+  original excerpt still being in memory, which a reload clears.
 - **Rate limiting is per-process**, not distributed — see the Vercel
   caveat in SECURITY.md.
 - **The Cloudflare deployment option wasn't pursued.** The app is
@@ -123,6 +140,4 @@ Roughly in order of likely value:
 2. **Parallelizing bulk-import generation** (with a concurrency cap that
    respects the shared rate limiter), if sequential generation proves too
    slow for larger batches in practice.
-3. **Settings UI** for switching economy mode and provider status, per
-   IMPLEMENTATION_PLAN.md section 18.
-4. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.
+3. **Cloudflare deployment**, if Vercel's free tier ever becomes limiting.

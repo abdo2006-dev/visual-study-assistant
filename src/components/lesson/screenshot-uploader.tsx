@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import { compressImage, dataUrlToBase64 } from "@/lib/upload/compressImage";
 import { validateImageFile } from "@/lib/upload/imageValidation";
@@ -115,6 +116,7 @@ export function ScreenshotUploader({
             imageBase64: dataUrlToBase64(preview.dataUrl),
             mimeType: preview.mimeType,
           })),
+          mode: getEconomyModeOverride(),
         }),
         signal: controller.signal,
       });

@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ApiUsageDashboard } from "@/components/settings/api-usage-dashboard";
+import { EconomyModeSelector } from "@/components/settings/economy-mode-selector";
 
 export default function SettingsPage() {
   return (
@@ -8,10 +9,11 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="text-sm text-muted-foreground">
-            Economical / balanced / highest-quality mode selection and
-            provider status will live here in a future milestone.
+            Control which Gemini model this device uses, and see how much
+            you&apos;ve been consuming.
           </p>
         </div>
+        <EconomyModeSelector />
         <ApiUsageDashboard />
       </div>
     </AppShell>

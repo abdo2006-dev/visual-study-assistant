@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 import { readProgressStream } from "@/lib/ai/readProgressStream";
 import { visualLessonSchema } from "@/lib/schema/lesson";
+import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
 import { recordApiUsageFromResponseBody } from "@/lib/storage/apiUsageRepository";
 import {
   createBatch,
@@ -55,6 +56,7 @@ export function BulkImportPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
   const batchIdRef = useRef<string | null>(null);
+  const toGenerateRef = useRef<ProposedLesson[]>([]);
   const elapsedSeconds = useElapsedSeconds(step === "generating");
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export function BulkImportPanel() {
       const response = await fetch("/api/bulk-import-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceText }),
+        body: JSON.stringify({ sourceText, mode: getEconomyModeOverride() }),
       });
       const body = await response.json();
       if (!response.ok) {
@@ -141,6 +143,75 @@ export function BulkImportPanel() {
     }));
   }
 
+  async function generateOne(index: number) {
+    const proposedLesson = toGenerateRef.current[index];
+
+    setResults((current) => {
+      const next = current.map((result, i) =>
+        i === index
+          ? {
+              ...result,
+              status: "generating" as const,
+              statusMessage: "Sending your text...",
+              error: undefined,
+            }
+          : result
+      );
+      if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+      return next;
+    });
+
+    try {
+      const response = await fetch("/api/lesson-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceText: proposedLesson.sourceText,
+          mode: getEconomyModeOverride(),
+        }),
+      });
+      if (!response.ok) {
+        const fallback = await response.json().catch(() => null);
+        throw new Error(fallback?.error ?? "Failed to generate this lesson.");
+      }
+
+      const body = await readProgressStream<{ apiUsage?: unknown }>(response, (message) => {
+        setResults((current) =>
+          current.map((result, i) => (i === index ? { ...result, statusMessage: message } : result))
+        );
+      });
+      recordApiUsageFromResponseBody("lesson-plan", body);
+
+      const lesson = visualLessonSchema.parse(body);
+      lesson.title = proposedLesson.title;
+      const saved = await saveLesson(lesson);
+
+      setResults((current) => {
+        const next = current.map((result, i) =>
+          i === index
+            ? { ...result, status: "success" as const, lessonId: saved.id, error: undefined }
+            : result
+        );
+        if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+        return next;
+      });
+    } catch (err) {
+      setResults((current) => {
+        const next = current.map((result, i) =>
+          i === index
+            ? {
+                ...result,
+                status: "error" as const,
+                error: err instanceof Error ? err.message : "Failed to generate this lesson.",
+              }
+            : result
+        );
+        if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
+        return next;
+      });
+    }
+  }
+
   async function handleGenerate() {
     const toGenerate = proposed.filter((lesson) => lesson.included);
     if (toGenerate.length === 0) {
@@ -150,6 +221,7 @@ export function BulkImportPanel() {
 
     cancelledRef.current = false;
     setError(null);
+    toGenerateRef.current = toGenerate;
     const initialResults: GenerationResult[] = toGenerate.map((lesson) => ({
       title: lesson.title,
       status: "pending",
@@ -175,62 +247,15 @@ export function BulkImportPanel() {
         break;
       }
 
-      setResults((current) => {
-        const next = current.map((result, index) =>
-          index === i ? { ...result, status: "generating" as const, statusMessage: "Sending your text..." } : result
-        );
-        if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
-        return next;
-      });
-
-      const proposedLesson = toGenerate[i];
-      try {
-        const response = await fetch("/api/lesson-plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceText: proposedLesson.sourceText }),
-        });
-        if (!response.ok) {
-          const fallback = await response.json().catch(() => null);
-          throw new Error(fallback?.error ?? "Failed to generate this lesson.");
-        }
-
-        const body = await readProgressStream<{ apiUsage?: unknown }>(response, (message) => {
-          setResults((current) =>
-            current.map((result, index) => (index === i ? { ...result, statusMessage: message } : result))
-          );
-        });
-        recordApiUsageFromResponseBody("lesson-plan", body);
-
-        const lesson = visualLessonSchema.parse(body);
-        lesson.title = proposedLesson.title;
-        const saved = await saveLesson(lesson);
-
-        setResults((current) => {
-          const next = current.map((result, index) =>
-            index === i ? { ...result, status: "success" as const, lessonId: saved.id } : result
-          );
-          if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
-          return next;
-        });
-      } catch (err) {
-        setResults((current) => {
-          const next = current.map((result, index) =>
-            index === i
-              ? {
-                  ...result,
-                  status: "error" as const,
-                  error: err instanceof Error ? err.message : "Failed to generate this lesson.",
-                }
-              : result
-          );
-          if (batchIdRef.current) void updateBatchLessons(batchIdRef.current, toBatchLessons(next));
-          return next;
-        });
-      }
+      await generateOne(i);
     }
 
     setStep("done");
+    void refreshRecentBatches();
+  }
+
+  async function handleRetry(index: number) {
+    await generateOne(index);
     void refreshRecentBatches();
   }
 
@@ -410,7 +435,12 @@ export function BulkImportPanel() {
                   <span className="shrink-0 text-xs text-muted-foreground">Cancelled</span>
                 )}
                 {result.status === "error" && (
-                  <span className="shrink-0 text-xs text-destructive">{result.error}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-destructive">{result.error}</span>
+                    <Button variant="outline" size="sm" onClick={() => handleRetry(index)}>
+                      Retry
+                    </Button>
+                  </span>
                 )}
               </li>
             ))}
