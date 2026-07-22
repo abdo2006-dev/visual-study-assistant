@@ -61,6 +61,7 @@ export async function generateWithRepair<T>({
   responseSchema,
   initialParts,
   signal,
+  onProgress,
 }: {
   client: GoogleGenAI;
   model: string;
@@ -68,6 +69,8 @@ export async function generateWithRepair<T>({
   responseSchema: object;
   initialParts: Part[];
   signal?: AbortSignal;
+  /** Called once, only if the first response needs a repair retry — an extra Gemini round trip a slow-feeling request is otherwise silent about. */
+  onProgress?: (message: string) => void;
 }): Promise<T> {
   const contents: Content[] = [{ role: "user", parts: initialParts }];
 
@@ -77,6 +80,7 @@ export async function generateWithRepair<T>({
     return firstResult.data;
   }
 
+  onProgress?.("That response needed a correction — trying again...");
   contents.push({ role: "model", parts: [{ text: first }] });
   contents.push({
     role: "user",

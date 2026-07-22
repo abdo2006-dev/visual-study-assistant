@@ -68,6 +68,46 @@ describe("generateLessonPlan", () => {
     expect(createLessonPlan).toHaveBeenCalledTimes(2);
   });
 
+  it("passes optional instructions through to the provider", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const { provider, createLessonPlan } = makeFakeProvider();
+
+    await generateLessonPlan(provider, {
+      sourceText: "some text",
+      instructions: "focus on how to graph this",
+    });
+
+    expect(createLessonPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ instructions: "focus on how to graph this" })
+    );
+  });
+
+  it("does not cache across different instructions for the same source text", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const { provider, createLessonPlan } = makeFakeProvider();
+
+    await generateLessonPlan(provider, { sourceText: "same text", instructions: "focus on X" });
+    await generateLessonPlan(provider, { sourceText: "same text", instructions: "focus on Y" });
+    await generateLessonPlan(provider, { sourceText: "same text" });
+
+    expect(createLessonPlan).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects instructions over the length limit without calling the provider", async () => {
+    const { generateLessonPlan, InvalidLessonPlanRequestError } = await import(
+      "@/lib/ai/lessonPlanService"
+    );
+    const { provider, createLessonPlan } = makeFakeProvider();
+
+    await expect(
+      generateLessonPlan(provider, {
+        sourceText: "some text",
+        instructions: "a".repeat(501),
+      })
+    ).rejects.toThrow(InvalidLessonPlanRequestError);
+    expect(createLessonPlan).not.toHaveBeenCalled();
+  });
+
   it("attaches a visual the provider's planVisuals assigns to a real section", async () => {
     const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
     const visual = {

@@ -157,8 +157,12 @@ Rules:
 - For each section, add curiosityQuestions ONLY where a sharp student would genuinely feel something is unresolved — especially a claim that sounds surprising or incomplete on its own (e.g. "the potential is zero, but the field isn't" begs "why not?"). Mostly "why" (the reasoning behind a claim, not just a restatement of it); use "how" or "what" only when they add real understanding a "why" wouldn't. Skip this entirely for sections that are already self-contained — most sections should get 0, some 1, rarely more than 2. A forced question that just restates the explanation is worse than no question.
 - Every curiosityQuestions answer must reason from the source text or standard, well-established knowledge about the topic — never invented facts, numbers, or claims.
 - Do not invent facts, numbers, or claims that are not in the source text and not standard, well-established knowledge about the topic.
+- If the student gave optional instructions below, follow them where reasonable (e.g. "focus on how to graph this" can shift emphasis toward that content, "ignore the historical background" can mean skipping or condensing a section) — but never invent facts or content that isn't in the source text just to satisfy an instruction, and never drop content the instructions don't actually address.
 - Output must be valid JSON matching the provided schema exactly. Do not include any text outside the JSON.`;
 
-export function buildLessonPlanPrompt(sourceText: string): string {
-  return `${SYSTEM_INSTRUCTION}\n\nSource text:\n"""\n${sourceText}\n"""`;
+export function buildLessonPlanPrompt(sourceText: string, instructions?: string): string {
+  const instructionsBlock = instructions?.trim()
+    ? `\n\nStudent's optional instructions for this lesson:\n"""\n${instructions.trim()}\n"""`
+    : "";
+  return `${SYSTEM_INSTRUCTION}\n\nSource text:\n"""\n${sourceText}\n"""${instructionsBlock}`;
 }

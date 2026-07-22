@@ -1,4 +1,4 @@
-import type { VisualLesson } from "@/lib/schema/lesson";
+import { normalizeLesson, type VisualLesson } from "@/lib/schema/lesson";
 
 import { getDb } from "./db";
 
@@ -9,7 +9,11 @@ export async function initializeRevisionsIfMissing(lesson: VisualLesson): Promis
   const db = await getDb();
   const existing = await db.get("revisions", lesson.id);
   if (!existing) {
-    await db.put("revisions", { lessonId: lesson.id, history: [lesson], pointer: 0 });
+    await db.put("revisions", {
+      lessonId: lesson.id,
+      history: [normalizeLesson(lesson)],
+      pointer: 0,
+    });
   }
 }
 
@@ -49,7 +53,7 @@ export async function undo(lessonId: string): Promise<VisualLesson | undefined> 
   if (!existing || existing.pointer <= 0) return undefined;
   const pointer = existing.pointer - 1;
   await db.put("revisions", { ...existing, pointer });
-  return existing.history[pointer];
+  return normalizeLesson(existing.history[pointer]);
 }
 
 export async function redo(lessonId: string): Promise<VisualLesson | undefined> {
@@ -58,5 +62,5 @@ export async function redo(lessonId: string): Promise<VisualLesson | undefined> 
   if (!existing || existing.pointer >= existing.history.length - 1) return undefined;
   const pointer = existing.pointer + 1;
   await db.put("revisions", { ...existing, pointer });
-  return existing.history[pointer];
+  return normalizeLesson(existing.history[pointer]);
 }

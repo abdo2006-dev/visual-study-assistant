@@ -47,7 +47,7 @@ function CuriosityQuestionItem({ question }: { question: CuriosityQuestion }) {
 }
 
 export function CuriosityQuestions({ questions }: { questions: CuriosityQuestion[] }) {
-  if (questions.length === 0) return null;
+  if (!questions || questions.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">

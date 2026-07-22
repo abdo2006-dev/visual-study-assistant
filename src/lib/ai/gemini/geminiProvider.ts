@@ -59,6 +59,7 @@ export { AiGenerationError };
 export class GeminiProvider implements LessonAIProvider {
   async createLessonPlan({
     sourceText,
+    instructions,
     mode = "balanced",
     signal,
   }: CreateLessonPlanInput): Promise<VisualLesson> {
@@ -70,7 +71,7 @@ export class GeminiProvider implements LessonAIProvider {
       model,
       schema: aiLessonPlanSchema,
       responseSchema: lessonPlanResponseSchema,
-      initialParts: [{ text: buildLessonPlanPrompt(sourceText) }],
+      initialParts: [{ text: buildLessonPlanPrompt(sourceText, instructions) }],
       signal,
     });
 
@@ -101,6 +102,7 @@ export class GeminiProvider implements LessonAIProvider {
     history = [],
     mode = "balanced",
     signal,
+    onProgress,
   }: ModifyLessonInput): Promise<ModifyLessonResult> {
     const client = getGeminiClient();
     const model = getModelFor(mode);
@@ -112,6 +114,7 @@ export class GeminiProvider implements LessonAIProvider {
       responseSchema: lessonPatchResponseSchema,
       initialParts: [{ text: buildLessonPatchPrompt(lesson, message, history) }],
       signal,
+      onProgress,
     });
 
     const patches = aiResponse.patches

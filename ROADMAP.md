@@ -94,6 +94,40 @@
   boxes via a new `add-curiosity-question` patch, instead of only living
   in the chat transcript — see AI_PIPELINE.md's "Curiosity questions"
   section.
+- **Milestone 18** — reliability fixes and feature requests from real
+  usage:
+  - **Fixed a real crash**: a lesson saved before Milestone 17 shipped
+    (missing `curiosityQuestions`) crashed the whole page on reload,
+    because `getLesson`/`listLessons`/`undo`/`redo` returned raw
+    IndexedDB records without re-validating them. Every lesson read from
+    storage is now passed through `normalizeLesson` (`src/lib/schema/lesson.ts`),
+    which backfills any field added since the record was saved — this is
+    also why a chat edit could look "lost": it had saved correctly, the
+    reload just crashed rendering it.
+  - **Fixed screenshot drag-and-drop**: dropping worked once, then only
+    the file picker worked for every screenshot after the first — the
+    "already have previews" layout had no drop handlers at all. Both
+    layouts now share the same drop zone.
+  - **Tightened visual planning** against assuming an unstated charge
+    geometry (e.g. attaching `radial-charged-sphere` to a generic "sketch
+    E(r) and V(r)" section that never said "sphere") — now explicitly
+    told to use `coordinate-geometry` instead when no concrete geometry
+    is named, verified against real Gemini output.
+  - **Chat no longer looks stuck**: `/api/lesson-patch` now streams
+    progress the same way `/api/lesson-plan` has since Milestone 14, and
+    the chat panel shows a live "thinking" bubble with elapsed time
+    instead of nothing for up to a minute.
+  - **Optional generation instructions**: an optional field next to the
+    New Lesson textarea (e.g. "focus on how to graph this" / "ignore the
+    historical background"), followed where reasonable but never a
+    license to invent content — threaded through `createLessonPlan`.
+  - **Electric dipole torque simulation**: the `torque-in-field` mode's
+    "the slightest nudge creates a torque that swings p all the way
+    around" claim is no longer just prose — a "Simulate" button
+    integrates the actual `tau = -pE sin(theta)` restoring torque (plus
+    light damping so it settles instead of oscillating forever) frame by
+    frame, so releasing it near the unstable equilibrium visibly swings
+    toward alignment.
 
 ## Known limitations / deliberately out of scope
 

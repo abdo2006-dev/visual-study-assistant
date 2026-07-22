@@ -1,13 +1,15 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Equation } from "@/components/equations/equation";
 import type { ElectricDipoleParams } from "@/lib/schema/templates/electricDipole";
 
 import {
   axialFieldEquationLatex,
   axialFieldMagnitudeNormalized,
+  dipoleAngularAcceleration,
   dipoleMomentEquationLatex,
   equatorialFieldEquationLatex,
   equatorialFieldMagnitudeNormalized,
@@ -16,7 +18,12 @@ import {
   potentialEnergyNormalized,
   torqueEquationLatex,
   torqueMagnitudeNormalized,
+  wrapToAngleBetweenRange,
 } from "./electric-dipole-physics";
+
+const SIMULATION_NUDGE_DEG_PER_SEC = 8;
+const MAX_FRAME_DT_SEC = 0.05;
+const NEAR_EQUILIBRIUM_DEG = 8;
 
 const SIZE = 440;
 const CENTER = SIZE / 2;
@@ -50,10 +57,71 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
   } = parameters;
 
   const [theta, setTheta] = useState(initialAngleDegrees);
+  const [simulating, setSimulating] = useState(false);
+  const angularVelocityRef = useRef(0);
   const sliderId = useId();
 
-  const torque = torqueMagnitudeNormalized(theta);
-  const potentialEnergy = potentialEnergyNormalized(theta);
+  useEffect(() => {
+    if (!simulating) return;
+    let frameId: number;
+    let lastTimestamp: number | null = null;
+
+    function step(timestamp: number) {
+      if (lastTimestamp === null) lastTimestamp = timestamp;
+      const dt = Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_DT_SEC);
+      lastTimestamp = timestamp;
+
+      setTheta((current) => {
+        const acceleration = dipoleAngularAcceleration(current, angularVelocityRef.current);
+        angularVelocityRef.current += acceleration * dt;
+        return current + angularVelocityRef.current * dt;
+      });
+
+      frameId = requestAnimationFrame(step);
+    }
+
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [simulating]);
+
+  function handleToggleSimulate() {
+    if (simulating) {
+      setSimulating(false);
+      return;
+    }
+    // Right at an equilibrium, sin(theta) is exactly zero — no torque, so
+    // nothing would ever move on its own (that's what makes it an
+    // equilibrium) — and even close to one, the restoring torque starts out
+    // so small that it'd take many real seconds to become visible at all. A
+    // nudge whenever we're near either equilibrium is what "the slightest
+    // disturbance" actually looks like, without an unhelpfully long wait.
+    const wrapped = wrapToAngleBetweenRange(theta);
+    if (wrapped < NEAR_EQUILIBRIUM_DEG || wrapped > 180 - NEAR_EQUILIBRIUM_DEG) {
+      // Nudge in whichever direction the (tiny but nonzero) natural torque
+      // already points, so it swings the short way toward theta=0 rather
+      // than an arbitrary fixed direction that could send it the long way
+      // around through the equilibrium it just left.
+      const naturalAcceleration = dipoleAngularAcceleration(theta, 0);
+      const nudgeSign = naturalAcceleration < 0 ? -1 : 1;
+      angularVelocityRef.current = nudgeSign * SIMULATION_NUDGE_DEG_PER_SEC;
+    }
+    setSimulating(true);
+  }
+
+  function handleSliderChange(value: number) {
+    setSimulating(false);
+    angularVelocityRef.current = 0;
+    setTheta(value);
+  }
+
+  // The raw `theta` state accumulates continuously while simulating (it can
+  // go negative or past 180/360 mid-swing) so the dipole's SVG rotation and
+  // the physics stay correct through a full crossing; `displayTheta` wraps
+  // that back to the conventional 0-180 "angle between two vectors" used by
+  // every label, equation, and the slider.
+  const displayTheta = wrapToAngleBetweenRange(theta);
+  const torque = torqueMagnitudeNormalized(displayTheta);
+  const potentialEnergy = potentialEnergyNormalized(displayTheta);
   const fieldLines = useMemo(() => generateDipoleFieldLines(FIELD_LINE_COUNT), []);
 
   const plusPoint = { x: CENTER + D_PX, y: CENTER };
@@ -73,11 +141,11 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
   }, []);
 
   const currentEnergyPoint = {
-    x: (theta / 180) * 100,
+    x: (displayTheta / 180) * 100,
     y: 22 - (potentialEnergy / 1) * 18,
   };
 
-  const showTorqueArrow = showTorqueVector && theta > 0.5 && theta < 179.5;
+  const showTorqueArrow = showTorqueVector && displayTheta > 0.5 && displayTheta < 179.5;
 
   // A fixed-sense arc (sweeping from the right side of the dipole, over the
   // top, to the left) illustrating that torque always rotates p to *decrease*
@@ -92,14 +160,18 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
   };
 
   const equilibriumLabel =
-    theta < 0.5 ? "stable equilibrium (aligned with E)" : theta > 179.5 ? "unstable equilibrium (anti-aligned with E)" : null;
+    displayTheta < 0.5
+      ? "stable equilibrium (aligned with E)"
+      : displayTheta > 179.5
+        ? "unstable equilibrium (anti-aligned with E)"
+        : null;
 
   return (
     <div className="flex flex-col gap-4 rounded-md border border-border p-4">
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         role="img"
-        aria-label={`Electric dipole at theta = ${theta.toFixed(0)} degrees from the external field E${equilibriumLabel ? `, at its ${equilibriumLabel}` : ""}`}
+        aria-label={`Electric dipole at theta = ${displayTheta.toFixed(0)} degrees from the external field E${equilibriumLabel ? `, at its ${equilibriumLabel}` : ""}${simulating ? ", currently simulating its motion" : ""}`}
         className="w-full max-w-md self-center"
       >
         <defs>
@@ -209,17 +281,19 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
 
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">
-          theta = {theta.toFixed(0)}°{" "}
+          theta = {displayTheta.toFixed(0)}°{" "}
           {equilibriumLabel && (
             <span className="font-normal text-muted-foreground">({equilibriumLabel})</span>
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          {theta < 0.5
-            ? "p is aligned with E: torque is zero and this is the stable equilibrium — any small rotation away from here creates a restoring torque back toward alignment."
-            : theta > 179.5
-            ? "p is anti-aligned with E: torque is zero here too, but this is the unstable equilibrium — the slightest nudge creates a torque that swings p all the way around toward alignment."
-            : "The torque tau = pE sin(theta) always acts to rotate p toward alignment with E, decreasing theta — it peaks at theta = 90 degrees and vanishes at the two equilibria (0 and 180 degrees)."}
+          {simulating
+            ? "Simulating: the torque tau = pE sin(theta) is driving this rotation, with a touch of damping (like friction in a real system) so it settles at theta = 0 instead of swinging forever."
+            : displayTheta < 0.5
+              ? "p is aligned with E: torque is zero and this is the stable equilibrium — any small rotation away from here creates a restoring torque back toward alignment."
+              : displayTheta > 179.5
+                ? "p is anti-aligned with E: torque is zero here too, but this is the unstable equilibrium — the slightest nudge creates a torque that swings p all the way around toward alignment. Try \"Simulate\" to see it happen."
+                : "The torque tau = pE sin(theta) always acts to rotate p toward alignment with E, decreasing theta — it peaks at theta = 90 degrees and vanishes at the two equilibria (0 and 180 degrees)."}
         </p>
       </div>
 
@@ -233,11 +307,15 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
           min={0}
           max={180}
           step={1}
-          value={theta}
-          onChange={(event) => setTheta(Number(event.target.value))}
-          aria-valuetext={`theta = ${theta.toFixed(0)} degrees, torque = ${torque.toFixed(2)} pE, potential energy = ${potentialEnergy.toFixed(2)} pE`}
-          className="w-full"
+          value={displayTheta}
+          onChange={(event) => handleSliderChange(Number(event.target.value))}
+          disabled={simulating}
+          aria-valuetext={`theta = ${displayTheta.toFixed(0)} degrees, torque = ${torque.toFixed(2)} pE, potential energy = ${potentialEnergy.toFixed(2)} pE`}
+          className="w-full disabled:cursor-not-allowed disabled:opacity-60"
         />
+        <Button variant="outline" size="sm" className="self-start" onClick={handleToggleSimulate}>
+          {simulating ? "Pause" : "Simulate"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

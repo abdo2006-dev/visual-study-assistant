@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   axialFieldEquationLatex,
   axialFieldMagnitudeNormalized,
+  dipoleAngularAcceleration,
   dipoleMomentEquationLatex,
   equatorialFieldEquationLatex,
   equatorialFieldMagnitudeNormalized,
@@ -11,6 +12,7 @@ import {
   potentialEnergyNormalized,
   torqueEquationLatex,
   torqueMagnitudeNormalized,
+  wrapToAngleBetweenRange,
 } from "@/components/visuals/scientific-diagram/electric-dipole-physics";
 
 describe("far-field axial vs equatorial magnitude", () => {
@@ -61,6 +63,48 @@ describe("equation constants", () => {
       "U = -pE\\cos\\theta = -\\vec{p}\\cdot\\vec{E}"
     );
     expect(dipoleMomentEquationLatex).toBe("p = qd");
+  });
+});
+
+describe("dipoleAngularAcceleration", () => {
+  it("is exactly zero at rest at either equilibrium (0 or 180 degrees)", () => {
+    expect(dipoleAngularAcceleration(0, 0)).toBeCloseTo(0);
+    expect(dipoleAngularAcceleration(180, 0)).toBeCloseTo(0);
+  });
+
+  it("always drives the angle toward 0, never away from it", () => {
+    // Just past 0: pulled back down (negative acceleration).
+    expect(dipoleAngularAcceleration(10, 0)).toBeLessThan(0);
+    // Just past 180 (i.e. 170, approaching from below): pushed further away
+    // from 180, i.e. also toward 0 (positive acceleration = increasing
+    // angle is wrong here — at 170 the pull should be *toward* 180 being
+    // unstable, meaning away from 180 and back toward 0, so acceleration
+    // should be negative here too, matching -sin(170deg) which is negative).
+    expect(dipoleAngularAcceleration(170, 0)).toBeLessThan(0);
+  });
+
+  it("damping opposes the current angular velocity", () => {
+    const noDamping = dipoleAngularAcceleration(90, 0);
+    const withPositiveVelocity = dipoleAngularAcceleration(90, 50);
+    expect(withPositiveVelocity).toBeLessThan(noDamping);
+  });
+});
+
+describe("wrapToAngleBetweenRange", () => {
+  it("leaves values already in [0, 180] unchanged", () => {
+    expect(wrapToAngleBetweenRange(0)).toBeCloseTo(0);
+    expect(wrapToAngleBetweenRange(90)).toBeCloseTo(90);
+    expect(wrapToAngleBetweenRange(180)).toBeCloseTo(180);
+  });
+
+  it("mirrors values past 180 back down toward 0", () => {
+    expect(wrapToAngleBetweenRange(270)).toBeCloseTo(90);
+    expect(wrapToAngleBetweenRange(360)).toBeCloseTo(0);
+  });
+
+  it("wraps negative values the same way as their positive equivalent", () => {
+    expect(wrapToAngleBetweenRange(-10)).toBeCloseTo(10);
+    expect(wrapToAngleBetweenRange(-190)).toBeCloseTo(170);
   });
 });
 

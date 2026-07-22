@@ -125,6 +125,16 @@ Screenshots are stored inline as base64 data URLs on
 rather than in a separate store — see the Risks section of
 IMPLEMENTATION_PLAN.md for why.
 
+`idb`'s `db.get`/`db.getAll` hand back whatever was actually stored, with
+no runtime check against the current schema — a lesson (or revision
+snapshot) saved before a field was added to `visualLessonSchema` comes
+back missing that field entirely, not with its `.default()` filled in.
+`lessonRepository.ts` and `revisionRepository.ts` both run every lesson
+they read back through `normalizeLesson` (`src/lib/schema/lesson.ts`) for
+exactly this reason — a real crash shipped once from skipping this (see
+ROADMAP.md, Milestone 18) when `curiosityQuestions` was added and older
+stored lessons didn't have it.
+
 ## Visual rendering
 
 A lesson never contains executable code — only a `templateId` and a

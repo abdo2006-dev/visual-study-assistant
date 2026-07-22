@@ -35,6 +35,39 @@ export const torqueEquationLatex = "\\tau = pE\\sin\\theta";
 export const potentialEnergyEquationLatex = "U = -pE\\cos\\theta = -\\vec{p}\\cdot\\vec{E}";
 export const dipoleMomentEquationLatex = "p = qd";
 
+// Illustrative animation constants, not derived from a real moment of
+// inertia or SI units — chosen only so a released dipole's swing plays out
+// over a few legible seconds rather than instantly or imperceptibly slowly.
+export const DIPOLE_TORQUE_CONSTANT = 220; // deg/s^2 per unit sin(theta)
+export const DIPOLE_DAMPING = 0.8; // 1/s, a light "friction" so the swing settles instead of oscillating forever
+
+/**
+ * Angular acceleration (deg/s^2) for a damped dipole released in a uniform
+ * field: the same tau = -pE sin(theta) restoring torque as the equation
+ * above (negative because it always drives theta toward 0, the stable
+ * equilibrium), plus linear damping. `angleDegrees` is the raw, continuously
+ * accumulated rotation (not wrapped to 0-180) so the direction of swing
+ * through a full alignment crossing stays physically consistent.
+ */
+export function dipoleAngularAcceleration(
+  angleDegrees: number,
+  angularVelocityDegPerSec: number
+): number {
+  const angleRad = (angleDegrees * Math.PI) / 180;
+  return -DIPOLE_TORQUE_CONSTANT * Math.sin(angleRad) - DIPOLE_DAMPING * angularVelocityDegPerSec;
+}
+
+/**
+ * Wraps any real angle (e.g. the raw accumulated rotation while animating,
+ * which can go negative or past 360) down to the conventional 0-180 "angle
+ * between two vectors" range used everywhere else in this template for
+ * display, equations, and the slider.
+ */
+export function wrapToAngleBetweenRange(angleDegrees: number): number {
+  const wrapped = ((angleDegrees % 360) + 360) % 360;
+  return wrapped > 180 ? 360 - wrapped : wrapped;
+}
+
 export interface DipoleFieldLineDescriptor {
   /** Launch angle, in degrees, relative to the dipole axis (- to + direction). */
   startAngleDeg: number;

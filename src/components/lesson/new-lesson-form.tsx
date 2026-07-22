@@ -20,6 +20,7 @@ export function NewLessonForm() {
   const router = useRouter();
   const [entryMode, setEntryMode] = useState<"text" | "upload">("text");
   const [sourceText, setSourceText] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [screenshotDataUrls, setScreenshotDataUrls] = useState<string[] | null>(null);
   const [generating, setGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState(DEFAULT_GENERATING_MESSAGE);
@@ -58,7 +59,11 @@ export function NewLessonForm() {
       const response = await fetch("/api/lesson-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceText, mode: getEconomyModeOverride() }),
+        body: JSON.stringify({
+          sourceText,
+          instructions: instructions.trim() || undefined,
+          mode: getEconomyModeOverride(),
+        }),
         signal: controller.signal,
       });
 
@@ -149,6 +154,21 @@ export function NewLessonForm() {
               edit it above before generating if needed.
             </p>
           )}
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="lesson-instructions" className="text-xs font-medium text-muted-foreground">
+              Instructions (optional)
+            </label>
+            <input
+              id="lesson-instructions"
+              value={instructions}
+              onChange={(event) => setInstructions(event.target.value)}
+              disabled={generating}
+              placeholder='e.g. "focus on how to graph this" or "ignore the historical background"'
+              maxLength={500}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">

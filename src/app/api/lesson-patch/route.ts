@@ -3,9 +3,8 @@ import { z } from "zod";
 
 import { economyModeSchema } from "@/lib/ai/config";
 import { GeminiProvider } from "@/lib/ai/gemini/geminiProvider";
-import { jsonWithUsage } from "@/lib/ai/jsonWithUsage";
 import { generateLessonPatch } from "@/lib/ai/lessonPatchService";
-import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
+import { streamWithProgress } from "@/lib/ai/streamWithProgress";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Hobby plan hard ceiling — matches this route's own 60s AbortController below.
@@ -61,22 +60,23 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => timeoutController.abort(), TIMEOUT_MS);
   const signal = AbortSignal.any([request.signal, timeoutController.signal]);
 
-  try {
-    return await jsonWithUsage(() =>
-      generateLessonPatch(new GeminiProvider(), {
-        lesson: parsedBody.data.lesson,
-        message: parsedBody.data.message,
-        history: parsedBody.data.history,
-        mode: parsedBody.data.mode,
-        signal,
-      })
-    );
-  } catch (err) {
-    return mapAiErrorToResponse(err, {
-      timedOut: timeoutController.signal.aborted,
+  return streamWithProgress(
+    (onProgress) =>
+      generateLessonPatch(
+        new GeminiProvider(),
+        {
+          lesson: parsedBody.data.lesson,
+          message: parsedBody.data.message,
+          history: parsedBody.data.history,
+          mode: parsedBody.data.mode,
+          signal,
+        },
+        { onProgress }
+      ),
+    {
+      timedOut: () => timeoutController.signal.aborted,
       logPrefix: "[lesson-patch]",
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+      onSettled: () => clearTimeout(timeout),
+    }
+  );
 }

@@ -1,16 +1,17 @@
-import { type VisualLesson, visualLessonSchema } from "@/lib/schema/lesson";
+import { normalizeLesson, type VisualLesson, visualLessonSchema } from "@/lib/schema/lesson";
 
 import { getDb } from "./db";
 
 export async function listLessons(): Promise<VisualLesson[]> {
   const db = await getDb();
   const lessons = await db.getAllFromIndex("lessons", "by-updatedAt");
-  return lessons.reverse();
+  return lessons.reverse().map(normalizeLesson);
 }
 
 export async function getLesson(id: string): Promise<VisualLesson | undefined> {
   const db = await getDb();
-  return db.get("lessons", id);
+  const lesson = await db.get("lessons", id);
+  return lesson ? normalizeLesson(lesson) : undefined;
 }
 
 export async function saveLesson(lesson: VisualLesson): Promise<VisualLesson> {

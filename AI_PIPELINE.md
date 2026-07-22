@@ -24,7 +24,7 @@ service, or UI code depends on Gemini's response shapes.
 
 | Operation | Route | Input | Output |
 |---|---|---|---|
-| Lesson planning | `/api/lesson-plan` | pasted text | a full `VisualLesson` (no visuals yet) |
+| Lesson planning | `/api/lesson-plan` | pasted text + optional student instructions | a full `VisualLesson` (no visuals yet) |
 | Visual planning | *(internal — see below)* | the just-planned lesson | per-section `VisualBlock` assignments |
 | Source extraction | `/api/extract` | one or more compressed screenshots | reading-order markdown |
 | Lesson modification | `/api/lesson-patch` | a chat message + condensed lesson | a reply + `LessonPatch[]` |
@@ -36,6 +36,14 @@ own Zod schema. Visual planning has no route of its own — `generateLessonPlan`
 (`src/lib/ai/lessonPlanService.ts`) calls `provider.planVisuals` itself right
 after `provider.createLessonPlan`, so a single `POST /api/lesson-plan` request
 still returns a lesson with visuals already attached.
+
+The optional `instructions` string (e.g. "focus on how to graph this",
+"ignore the historical background") is appended to the lesson-planning
+prompt as its own fenced block, with an explicit rule to follow it where
+reasonable but never invent content just to satisfy it — the same
+never-invent-facts principle as everything else in that prompt. It's part
+of the cache key (`lessonPlanService.ts`) so the same source text with
+different instructions isn't served a stale cached result.
 
 ## Streaming progress instead of a silent wait
 
@@ -66,9 +74,15 @@ of returning one JSON blob:
   elapsed-time counter (`useElapsedSeconds`) instead of a static
   "Generating..." spinner, so a slow call reads as *working*, not stuck.
 
-Only `/api/lesson-plan` streams — extraction, chat, verification, and the
-bulk-import outline pass are all fast enough (one Gemini call) that this
-wasn't worth the added complexity there.
+`/api/lesson-patch` (chat) streams the same way (Milestone 18) —
+`generateLessonPatch` takes the same `{ onProgress }` option, narrating
+"Reading your message..." immediately and, if `generateWithRepair` needs a
+retry, "That response needed a correction — trying again..." so a
+several-second chat round trip no longer looks like nothing is happening.
+`LessonChatPanel` renders this as a pulsing "thinking" bubble with an
+elapsed-time counter, matching the lesson-generation UX. Extraction,
+verification, and the bulk-import outline pass are still plain JSON — each
+is one Gemini call with no natural phase to narrate.
 
 ## Bulk import: outline-first, two-pass
 

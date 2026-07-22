@@ -14,6 +14,7 @@ const TIMEOUT_MS = Number(process.env.LESSON_PLAN_TIMEOUT_MS) || 60_000;
 
 const requestBodySchema = z.object({
   sourceText: z.string(),
+  instructions: z.string().optional(),
   mode: economyModeSchema.optional(),
 });
 
@@ -41,7 +42,12 @@ export async function POST(request: Request) {
     (onProgress) =>
       generateLessonPlan(
         new GeminiProvider(),
-        { sourceText: parsedBody.data.sourceText, mode: parsedBody.data.mode, signal },
+        {
+          sourceText: parsedBody.data.sourceText,
+          instructions: parsedBody.data.instructions,
+          mode: parsedBody.data.mode,
+          signal,
+        },
         { onProgress }
       ),
     {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
+import { getDb } from "@/lib/storage/db";
 import {
   canRedo,
   canUndo,
@@ -61,5 +62,23 @@ describe("revisionRepository", () => {
     await initializeRevisionsIfMissing(lesson);
     expect(await undo(lesson.id)).toBeUndefined();
     expect(await redo(lesson.id)).toBeUndefined();
+  });
+
+  it("backfills curiosityQuestions on a history snapshot saved before that field existed", async () => {
+    // Same back-compat scenario as lesson-repository.test.ts, but for a
+    // revision snapshot written directly to bypass normalization, the way a
+    // real pre-Milestone-17 snapshot already on disk would be.
+    const original = createChargedSphereMockLesson();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (original.sections[0] as any).curiosityQuestions = undefined;
+    const edited = withTitle(original, "Edited title");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (edited.sections[0] as any).curiosityQuestions = undefined;
+
+    const db = await getDb();
+    await db.put("revisions", { lessonId: original.id, history: [original, edited], pointer: 1 });
+
+    const restored = await undo(original.id);
+    expect(restored?.sections[0].curiosityQuestions).toEqual([]);
   });
 });

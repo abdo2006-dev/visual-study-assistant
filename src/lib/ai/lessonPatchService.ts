@@ -13,6 +13,11 @@ export class InvalidLessonPatchRequestError extends InvalidAiRequestError {
 
 const MAX_MESSAGE_LENGTH = 2_000;
 
+export interface GenerateLessonPatchOptions {
+  /** Called synchronously at each phase boundary so the route can stream a live status instead of leaving the chat looking stuck for the whole (often several-second, occasionally up to a minute) round trip. */
+  onProgress?: (message: string) => void;
+}
+
 /**
  * Provider-agnostic orchestration for chat-based lesson edits — mirrors
  * lessonPlanService.ts/extractionService.ts. No content-hash caching here:
@@ -22,7 +27,8 @@ const MAX_MESSAGE_LENGTH = 2_000;
  */
 export async function generateLessonPatch(
   provider: LessonAIProvider,
-  input: ModifyLessonInput
+  input: ModifyLessonInput,
+  { onProgress }: GenerateLessonPatchOptions = {}
 ): Promise<ModifyLessonResult> {
   const message = input.message.trim();
 
@@ -40,5 +46,6 @@ export async function generateLessonPatch(
 
   checkRateLimit();
 
-  return provider.modifyLesson({ ...input, message });
+  onProgress?.("Reading your message...");
+  return provider.modifyLesson({ ...input, message, onProgress });
 }

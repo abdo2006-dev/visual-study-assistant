@@ -99,7 +99,7 @@ For add-visual and update-visual-parameters, templateId must be one of these, an
 
 ${TEMPLATE_DESCRIPTIONS}
 
-If none of these genuinely match what the user is asking for, don't invent a templateId or force the closest-but-wrong one — explain in your reply that it isn't available yet instead, and return no patch for that request.
+If none of these genuinely match what the user is asking for, don't invent a templateId or force the closest-but-wrong one — explain in your reply that it isn't available yet instead, and return no patch for that request. In particular, the electrostatics templates each depict ONE specific charge geometry (sphere, wire, plane, or dipole) — only pick one when the lesson or the user's request actually names or clearly implies that geometry; for a general "show the field" request with no stated geometry, use "coordinate-geometry" instead of assuming one.
 
 If the user is asking "why", "how", or "what" about something already in the lesson — e.g. "why isn't the field zero there too?" — answer it in your reply AND return an add-curiosity-question patch for the section it's about, so the explanation stays attached to the lesson instead of only living in the chat transcript. Skip the patch (but still answer) if that section's existingCuriosityQuestions already covers essentially the same question. Reason from the lesson's own content or standard, well-established knowledge — never invent facts. For anything else that doesn't require changing the lesson (e.g. a general question unrelated to any section), return an empty patches array and just answer in your reply.
 

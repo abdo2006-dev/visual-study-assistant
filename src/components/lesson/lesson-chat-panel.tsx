@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
+import { readProgressStream } from "@/lib/ai/readProgressStream";
 import { applyLessonPatches } from "@/lib/lessonPatch/applyLessonPatch";
 import { condenseLessonForChat } from "@/lib/lessonPatch/condenseLesson";
 import type { VisualLesson } from "@/lib/schema/lesson";
@@ -17,6 +19,8 @@ import type { ChatMessage } from "@/lib/storage/db";
 import { saveLesson } from "@/lib/storage/lessonRepository";
 import { initializeRevisionsIfMissing, recordRevision } from "@/lib/storage/revisionRepository";
 
+const DEFAULT_THINKING_MESSAGE = "Reading your message...";
+
 export function LessonChatPanel({
   lesson,
   onLessonChanged,
@@ -27,8 +31,10 @@ export function LessonChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(DEFAULT_THINKING_MESSAGE);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const elapsedSeconds = useElapsedSeconds(sending);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +55,7 @@ export function LessonChatPanel({
     if (!trimmed || sending) return;
 
     setSending(true);
+    setStatusMessage(DEFAULT_THINKING_MESSAGE);
     setError(null);
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -79,10 +86,15 @@ export function LessonChatPanel({
         signal: controller.signal,
       });
 
-      const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to process your message.");
+        const fallback = await response.json().catch(() => null);
+        throw new Error(fallback?.error ?? "Failed to process your message.");
       }
+
+      const body = await readProgressStream<{ reply: string; patches: unknown[]; apiUsage?: unknown }>(
+        response,
+        setStatusMessage
+      );
       recordApiUsageFromResponseBody("lesson-patch", body);
 
       const assistantMessage: ChatMessage = {
@@ -165,6 +177,18 @@ export function LessonChatPanel({
               {message.content}
             </div>
           ))}
+          {sending && (
+            <div
+              className="flex max-w-[85%] items-center gap-1.5 self-start rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              <span
+                className="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
+                aria-hidden="true"
+              />
+              {statusMessage} ({elapsedSeconds}s)
+            </div>
+          )}
         </div>
       </ScrollArea>
       {error && <p className="px-4 pb-2 text-xs text-destructive">{error}</p>}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { getEconomyModeOverride } from "@/lib/settings/economyModePreference";
@@ -147,9 +147,29 @@ export function ScreenshotUploader({
     abortControllerRef.current?.abort();
   }
 
+  const dropZoneProps = {
+    onDragOver: (event: DragEvent) => {
+      event.preventDefault();
+      setDragActive(true);
+    },
+    onDragLeave: () => setDragActive(false),
+    onDrop: (event: DragEvent) => {
+      event.preventDefault();
+      setDragActive(false);
+      const files = Array.from(event.dataTransfer.files ?? []);
+      if (files.length > 0) handleFiles(files);
+    },
+  };
+
   if (previews.length > 0) {
     return (
-      <div className="flex flex-col gap-3 rounded-md border border-border p-4">
+      <div
+        {...dropZoneProps}
+        data-slot="screenshot-dropzone"
+        className={`flex flex-col gap-3 rounded-md border p-4 transition-colors ${
+          dragActive ? "border-primary bg-accent" : "border-border"
+        }`}
+      >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {previews.map((preview, index) => (
             <div key={index} className="relative">
@@ -175,9 +195,16 @@ export function ScreenshotUploader({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={processing}
-              className="flex h-32 w-full items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border p-2 text-center text-sm text-muted-foreground hover:border-primary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {processing ? "Processing..." : "+ Add another"}
+              {processing ? (
+                "Processing..."
+              ) : (
+                <>
+                  <span>+ Add another</span>
+                  <span className="text-xs">or drag and drop, or paste</span>
+                </>
+              )}
             </button>
           )}
         </div>
@@ -218,17 +245,8 @@ export function ScreenshotUploader({
 
   return (
     <div
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragActive(true);
-      }}
-      onDragLeave={() => setDragActive(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setDragActive(false);
-        const files = Array.from(event.dataTransfer.files ?? []);
-        if (files.length > 0) handleFiles(files);
-      }}
+      {...dropZoneProps}
+      data-slot="screenshot-dropzone"
       className={`flex flex-col items-center gap-3 rounded-md border border-dashed p-8 text-center transition-colors ${
         dragActive ? "border-primary bg-accent" : "border-border"
       }`}

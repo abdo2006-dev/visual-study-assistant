@@ -64,3 +64,16 @@ export type ImportantTerm = z.infer<typeof importantTermSchema>;
 export type CuriosityQuestion = z.infer<typeof curiosityQuestionSchema>;
 export type LessonSection = z.infer<typeof lessonSectionSchema>;
 export type VisualLesson = z.infer<typeof visualLessonSchema>;
+
+/**
+ * Every read from IndexedDB (lessons, revision history) must go through
+ * this, not just a type-cast — `db.get`/`db.getAll` hand back whatever was
+ * actually stored, with no runtime check, so a lesson saved before a schema
+ * field was added (e.g. curiosityQuestions in Milestone 17) would otherwise
+ * come back missing that array rather than `[]`. Re-parsing here is what
+ * actually backfills the field's `.default([])`, so older stored lessons
+ * don't crash a component that assumes the field always exists.
+ */
+export function normalizeLesson(raw: unknown): VisualLesson {
+  return visualLessonSchema.parse(raw);
+}

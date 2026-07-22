@@ -36,6 +36,16 @@ function postRequest(body: unknown) {
   });
 }
 
+/** The route always streams NDJSON now — reads every line and returns them all. */
+async function readLines(response: Response): Promise<Record<string, unknown>[]> {
+  const text = await response.text();
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
 describe("POST /api/lesson-patch", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -48,7 +58,7 @@ describe("POST /api/lesson-patch", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns 200 with the reply and patches on success", async () => {
+  it("streams the reply and patches as the final result event on success", async () => {
     modifyLesson.mockResolvedValueOnce({
       reply: "Done.",
       patches: [{ op: "add-prerequisite", prerequisite: "Vectors" }],
@@ -60,12 +70,14 @@ describe("POST /api/lesson-patch", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.reply).toBe("Done.");
-    expect(body.patches).toHaveLength(1);
+    const lines = await readLines(response);
+    const result = lines.at(-1);
+    expect(result?.type).toBe("result");
+    expect(result?.reply).toBe("Done.");
+    expect(result?.patches).toHaveLength(1);
   });
 
-  it("returns 400 when the service rejects the request as invalid", async () => {
+  it("streams a 400 error event when the service rejects the request as invalid", async () => {
     const { InvalidLessonPatchRequestError } = await import("@/lib/ai/lessonPatchService");
     modifyLesson.mockImplementation(() => {
       throw new InvalidLessonPatchRequestError("bad request");
@@ -73,19 +85,25 @@ describe("POST /api/lesson-patch", () => {
 
     const { POST } = await import("@/app/api/lesson-patch/route");
     const response = await POST(postRequest({ lesson: validLesson, message: "" }));
-    expect(response.status).toBe(400);
+    const lines = await readLines(response);
+    const result = lines.at(-1) as { type: string; status?: number };
+    expect(result.type).toBe("error");
+    expect(result.status).toBe(400);
   });
 
-  it("returns 502 when the provider fails to produce valid output", async () => {
+  it("streams a 502 error event when the provider fails to produce valid output", async () => {
     const { AiGenerationError } = await import("@/lib/ai/gemini/geminiProvider");
     modifyLesson.mockRejectedValueOnce(new AiGenerationError("bad output"));
 
     const { POST } = await import("@/app/api/lesson-patch/route");
     const response = await POST(postRequest({ lesson: validLesson, message: "hello" }));
-    expect(response.status).toBe(502);
+    const lines = await readLines(response);
+    const result = lines.at(-1) as { type: string; status?: number };
+    expect(result.type).toBe("error");
+    expect(result.status).toBe(502);
   });
 
-  it("returns 504 when generation exceeds the timeout", async () => {
+  it("streams a 504 error event when generation exceeds the timeout", async () => {
     process.env.LESSON_PATCH_TIMEOUT_MS = "20";
     modifyLesson.mockImplementation(
       (input: { signal?: AbortSignal }) =>
@@ -98,8 +116,23 @@ describe("POST /api/lesson-patch", () => {
 
     const { POST } = await import("@/app/api/lesson-patch/route");
     const response = await POST(postRequest({ lesson: validLesson, message: "hello" }));
+    const lines = await readLines(response);
+    const result = lines.at(-1) as { type: string; status?: number };
 
-    expect(response.status).toBe(504);
+    expect(result.type).toBe("error");
+    expect(result.status).toBe(504);
     delete process.env.LESSON_PATCH_TIMEOUT_MS;
+  });
+
+  it("emits a progress event before the final result", async () => {
+    modifyLesson.mockResolvedValueOnce({ reply: "Done.", patches: [] });
+
+    const { POST } = await import("@/app/api/lesson-patch/route");
+    const response = await POST(postRequest({ lesson: validLesson, message: "hello" }));
+    const lines = await readLines(response);
+
+    const progressMessages = lines.filter((line) => line.type === "progress");
+    expect(progressMessages.length).toBeGreaterThan(0);
+    expect(lines.at(-1)?.type).toBe("result");
   });
 });

@@ -17,6 +17,7 @@ export class InvalidLessonPlanRequestError extends InvalidAiRequestError {
 }
 
 const MAX_SOURCE_TEXT_LENGTH = 20_000;
+const MAX_INSTRUCTIONS_LENGTH = 500;
 const CACHE_TTL_MS = 10 * 60_000;
 
 // Vercel's Hobby plan caps a serverless function's total run time at 60s
@@ -64,14 +65,22 @@ export async function generateLessonPlan(
       `That text is too long (max ${MAX_SOURCE_TEXT_LENGTH.toLocaleString()} characters).`
     );
   }
+  const instructions = input.instructions?.trim() || undefined;
+  if (instructions && instructions.length > MAX_INSTRUCTIONS_LENGTH) {
+    throw new InvalidLessonPlanRequestError(
+      `Instructions are too long (max ${MAX_INSTRUCTIONS_LENGTH.toLocaleString()} characters).`
+    );
+  }
 
   checkRateLimit();
 
-  const cacheKey = await hashContent(`${input.mode ?? "balanced"}::${sourceText}`);
+  const cacheKey = await hashContent(
+    `${input.mode ?? "balanced"}::${instructions ?? ""}::${sourceText}`
+  );
   return withCache(cacheKey, CACHE_TTL_MS, async () => {
     const startedAt = Date.now();
     onProgress?.("Reading your text and drafting sections...");
-    const lesson = await provider.createLessonPlan({ ...input, sourceText });
+    const lesson = await provider.createLessonPlan({ ...input, sourceText, instructions });
     onProgress?.("Choosing visuals for each section...");
     const remainingBudgetMs = REQUEST_BUDGET_MS - (Date.now() - startedAt);
     return attachPlannedVisuals(provider, lesson, input.mode, input.signal, remainingBudgetMs);

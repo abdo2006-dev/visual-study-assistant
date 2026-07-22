@@ -75,6 +75,26 @@ test("parses a real multi-line NDJSON progress stream, not just a flat JSON body
   ).toBeVisible();
 });
 
+test("sends optional instructions alongside the source text", async ({ page }) => {
+  let sentInstructions: string | undefined;
+  await page.route("**/api/lesson-plan", async (route) => {
+    sentInstructions = route.request().postDataJSON()?.instructions;
+    await route.fulfill({ status: 200, json: mockLesson });
+  });
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder("Paste a text explanation here...")
+    .fill("An object in motion stays in motion unless a force acts on it.");
+  await page
+    .getByPlaceholder(/focus on how to graph this/)
+    .fill("focus on how to graph this");
+  await page.getByRole("button", { name: "Generate lesson" }).click();
+
+  await expect(page).toHaveURL(/\/lessons\/e2e-mock-lesson$/);
+  expect(sentInstructions).toBe("focus on how to graph this");
+});
+
 test("shows an error and preserves input when the API call fails", async ({ page }) => {
   await page.route("**/api/lesson-plan", async (route) => {
     await route.fulfill({

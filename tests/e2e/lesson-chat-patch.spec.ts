@@ -87,6 +87,30 @@ test("one patch failing (e.g. a stale section id) doesn't discard the others in 
   await expect(page.getByText(/1 of 2 changes couldn't be applied/)).toBeVisible();
 });
 
+test("shows a live thinking indicator while waiting for the chat response", async ({ page }) => {
+  await page.route("**/api/lesson-patch", async (route) => {
+    // A deliberate delay so the test can observe the "thinking" state the
+    // chat panel shows immediately on send, before any response has
+    // arrived — this used to be pure silence (see Milestone 18).
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.fulfill({
+      status: 200,
+      json: { reply: "All set.", patches: [] },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Load example lesson" }).click();
+  await expect(page).toHaveURL(/\/lessons\/.+/);
+
+  await page.getByPlaceholder("Ask to change this lesson...").fill("hello there");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  await expect(page.getByText(/Reading your message\.\.\./)).toBeVisible();
+  await expect(page.getByText("All set.")).toBeVisible();
+  await expect(page.getByText(/Reading your message\.\.\./)).toHaveCount(0);
+});
+
 test("chat conversation persists across a page reload", async ({ page }) => {
   await page.route("**/api/lesson-patch", async (route) => {
     await route.fulfill({

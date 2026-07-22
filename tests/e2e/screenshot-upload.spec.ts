@@ -1,11 +1,27 @@
+import fs from "node:fs";
 import path from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 const fixturePath = path.join(
   process.cwd(),
   "tests/e2e/fixtures/test-screenshot.png"
 );
+
+async function dropFile(locator: Locator, filePath: string, fileName: string) {
+  const buffer = fs.readFileSync(filePath);
+  const dataTransfer = await locator.page().evaluateHandle(
+    ({ base64, name }) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const file = new File([bytes], name, { type: "image/png" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      return dt;
+    },
+    { base64: buffer.toString("base64"), name: fileName }
+  );
+  await locator.dispatchEvent("drop", { dataTransfer });
+}
 
 const mockLesson = {
   schemaVersion: 1,
@@ -86,6 +102,24 @@ test("supports attaching more than one screenshot in a single extraction", async
   await expect(page.getByPlaceholder("Paste a text explanation here...")).toHaveValue(
     /Combined/
   );
+});
+
+test("keeps accepting drag-and-drop after the first screenshot, not just the file picker", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Upload screenshot" }).click();
+
+  const dropzone = page.locator('[data-slot="screenshot-dropzone"]');
+  await dropFile(dropzone, fixturePath, "first.png");
+  await expect(page.getByRole("img", { name: "Uploaded screenshot preview 1" })).toBeVisible();
+
+  // Regression check: after the first drop, the component used to switch to
+  // a layout with no drop handlers at all, forcing the file picker for
+  // every subsequent screenshot.
+  await dropFile(page.locator('[data-slot="screenshot-dropzone"]'), fixturePath, "second.png");
+  await expect(page.getByRole("img", { name: "Uploaded screenshot preview 2" })).toBeVisible();
+  await expect(page.getByText("2 screenshots")).toBeVisible();
 });
 
 test("rejects an unsupported file type before calling the extract API", async ({ page }) => {

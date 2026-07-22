@@ -11,6 +11,8 @@ import type { VisualBlock } from "@/lib/schema/visualBlocks";
 
 export interface CreateLessonPlanInput {
   sourceText: string;
+  /** Optional student guidance for how to shape the lesson, e.g. "focus on how to graph this" or "ignore the historical background" — followed where reasonable, never a license to invent content. */
+  instructions?: string;
   mode?: EconomyMode;
   signal?: AbortSignal;
 }
@@ -39,6 +41,7 @@ export interface ModifyLessonInput {
   history?: ChatTurn[];
   mode?: EconomyMode;
   signal?: AbortSignal;
+  onProgress?: (message: string) => void;
 }
 
 export interface ModifyLessonResult {
