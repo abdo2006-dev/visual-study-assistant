@@ -37,9 +37,7 @@ export function TopBar({ chatPanel }: { chatPanel?: ReactNode }) {
             <Sidebar />
           </SheetContent>
         </Sheet>
-        <span className="text-sm font-semibold md:hidden">
-          Visual Study Assistant
-        </span>
+        <span className="text-sm font-semibold md:hidden">EduViz</span>
       </div>
 
       <div className="flex items-center gap-1">

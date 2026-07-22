@@ -18,7 +18,7 @@ const libraryPackageSchema = z.object({
 
 export class ImportValidationError extends Error {
   constructor(cause: unknown) {
-    super("The imported file is not a valid Visual Study Assistant export.");
+    super("The imported file is not a valid EduViz export.");
     this.name = "ImportValidationError";
     this.cause = cause;
   }

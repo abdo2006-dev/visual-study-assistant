@@ -13,10 +13,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="px-4 py-4">
-        <span className="text-sm font-semibold tracking-tight">
-          Visual Study Assistant
-        </span>
+      <div className="flex items-center gap-2 px-4 py-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="" className="size-5" aria-hidden="true" />
+        <span className="text-sm font-semibold tracking-tight">EduViz</span>
       </div>
       <Separator />
       <div className="p-3">
@@ -25,11 +25,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <Separator />
       <ScrollArea className="flex-1 px-3 py-3">
         {loading ? (
-          <p className="px-1 text-xs text-sidebar-foreground/80">
+          <p className="px-1 text-xs text-sidebar-foreground">
             Loading lessons...
           </p>
         ) : lessons.length === 0 ? (
-          <p className="px-1 text-xs text-sidebar-foreground/80">
+          <p className="px-1 text-xs text-sidebar-foreground">
             Saved lessons will appear here.
           </p>
         ) : (
@@ -39,7 +39,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <Link
                   href={`/lessons/${lesson.id}`}
                   onClick={onNavigate}
-                  className="block truncate rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className="block truncate rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
                   {lesson.title}
                 </Link>

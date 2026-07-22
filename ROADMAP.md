@@ -54,6 +54,16 @@
   section. Bulk-import batches are also now persisted to IndexedDB as
   they run, with a "Recent imports" history shown on the page, so a
   refresh no longer erases visibility into what already generated.
+- **Milestone 15** — rebranded to **EduViz**: an indigo/violet-on-warm-
+  off-white palette (both themes, contrast-checked via the accessibility
+  suite), a hand-built SVG logo (`src/app/icon.svg`, also used as the
+  sidebar wordmark) rather than an AI-generated image — Gemini's image
+  models exist but returned quota-exceeded on this project's free tier,
+  and a deterministic hand-drawn mark fits this app's own "no AI-
+  generated images" design principle better anyway. The underlying repo
+  name, Vercel project, and deployed domain (`visual-study-assistant.vercel.app`)
+  were left unchanged — renaming those is a separate, riskier decision
+  than the in-app branding.
 
 ## Known limitations / deliberately out of scope
 

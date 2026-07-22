@@ -1,4 +1,4 @@
-# Visual Study Assistant — Implementation Plan
+# EduViz — Implementation Plan
 
 ## 0. Repository state
 

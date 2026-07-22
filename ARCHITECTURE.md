@@ -2,7 +2,7 @@
 
 ## Overview
 
-Visual Study Assistant is a local-first Next.js (App Router) app. All
+EduViz is a local-first Next.js (App Router) app. All
 lesson data lives in the browser's IndexedDB — there is no application
 database. The only server-side responsibility is proxying AI calls to
 Gemini, so the API key never reaches the client.

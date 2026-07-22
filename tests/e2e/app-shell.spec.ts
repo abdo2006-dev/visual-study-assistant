@@ -5,6 +5,10 @@ test("home page renders the app shell and new-lesson form", async ({
 }) => {
   await page.goto("/");
 
+  await expect(page).toHaveTitle("EduViz");
+  await expect(
+    page.getByRole("complementary", { name: "Lesson library" }).getByText("EduViz")
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "New lesson" })
   ).toBeVisible();

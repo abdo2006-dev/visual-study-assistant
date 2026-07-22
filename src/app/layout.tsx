@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Visual Study Assistant",
+  title: "EduViz",
   description:
-    "Turn text explanations and screenshots into interactive visual lessons.",
+    "EduViz turns text explanations and screenshots into interactive visual lessons.",
 };
 
 export default function RootLayout({

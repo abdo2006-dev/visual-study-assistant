@@ -1,4 +1,4 @@
-# Visual Study Assistant
+# EduViz
 
 A private, local-first study tool that turns pasted text explanations or
 screenshots of educational material into structured, interactive visual
