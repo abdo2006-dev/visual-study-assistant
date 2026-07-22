@@ -25,6 +25,12 @@ export function ProcessFlowDiagram({
 
   const [playing, setPlaying] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  // Whether stepping has ever been triggered, regardless of what
+  // animateProgression suggested at generation time — a user can always
+  // manually step through a process-flow diagram; the AI's flag only
+  // decides whether the highlight starts showing immediately.
+  const [everStepped, setEverStepped] = useState(false);
+  const showStepping = animateProgression || everStepped;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -59,30 +65,30 @@ export function ProcessFlowDiagram({
     <div className="flex flex-col gap-3 rounded-md border border-border p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Process flow</p>
-        {animateProgression && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (stepIndex + 1 >= primaryPath.length) setStepIndex(0);
-                setPlaying((p) => !p);
-              }}
-            >
-              {playing ? "Pause" : "Play"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setPlaying(false);
-                setStepIndex((i) => (i + 1) % Math.max(primaryPath.length, 1));
-              }}
-            >
-              Next
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEverStepped(true);
+              if (stepIndex + 1 >= primaryPath.length) setStepIndex(0);
+              setPlaying((p) => !p);
+            }}
+          >
+            {playing ? "Pause" : "Play"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEverStepped(true);
+              setPlaying(false);
+              setStepIndex((i) => (i + 1) % Math.max(primaryPath.length, 1));
+            }}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       <svg
@@ -111,7 +117,7 @@ export function ProcessFlowDiagram({
           const fromPx = toPixel(from);
           const toPx = toPixel(to);
           const isActiveEdge =
-            animateProgression &&
+            showStepping &&
             primaryPath[activeIndexInPath - 1] === edge.from &&
             primaryPath[activeIndexInPath] === edge.to;
           return (
@@ -130,7 +136,7 @@ export function ProcessFlowDiagram({
 
         {nodes.map((node) => {
           const { x, y } = toPixel(node);
-          const isActive = animateProgression && node.id === activeId;
+          const isActive = showStepping && node.id === activeId;
           return (
             <g key={node.id}>
               <rect

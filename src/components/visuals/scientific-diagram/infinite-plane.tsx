@@ -1,8 +1,10 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Equation } from "@/components/equations/equation";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import type { InfinitePlaneParams } from "@/lib/schema/templates/infinitePlane";
 
 import {
@@ -28,6 +30,7 @@ const ARROW_LEN = 26;
 const CHARGE_MARKER_COUNT = 14;
 const POTENTIAL_MIN = -2;
 const POTENTIAL_MAX = 2;
+const SWEEP_UNITS_PER_SEC = 0.8; // full -MAX_RATIO→MAX_RATIO sweep takes ~5s
 
 function toScreenX(ratio: number) {
   return CENTER_X + ratio * X_SCALE;
@@ -47,9 +50,31 @@ export function InfinitePlane({ parameters }: { parameters: InfinitePlaneParams 
   } = parameters;
 
   const [x, setX] = useState(initialObservationPositionRatio);
+  const [simulating, setSimulating] = useState(false);
+  const sweepDirectionRef = useRef(1);
   const sliderId = useId();
   const region = getRegion(x, configuration);
   const isPositive = chargeSign === "positive";
+
+  useAnimationFrame(simulating, (dt) => {
+    setX((current) => {
+      const next = current + sweepDirectionRef.current * SWEEP_UNITS_PER_SEC * dt;
+      if (next >= MAX_RATIO) {
+        sweepDirectionRef.current = -1;
+        return MAX_RATIO;
+      }
+      if (next <= -MAX_RATIO) {
+        sweepDirectionRef.current = 1;
+        return -MAX_RATIO;
+      }
+      return next;
+    });
+  });
+
+  function handleSliderChange(value: number) {
+    setSimulating(false);
+    setX(value);
+  }
 
   const markerOffsets = useMemo(
     () => generateChargeMarkerPositions(CHARGE_MARKER_COUNT),
@@ -256,10 +281,19 @@ export function InfinitePlane({ parameters }: { parameters: InfinitePlaneParams 
           max={MAX_RATIO}
           step={0.01}
           value={x}
-          onChange={(event) => setX(Number(event.target.value))}
+          onChange={(event) => handleSliderChange(Number(event.target.value))}
+          disabled={simulating}
           aria-valuetext={`x = ${x.toFixed(2)}, ${region === "between" ? "between the plates" : region === "outside" ? "outside the plates" : region}`}
-          className="w-full"
+          className="w-full disabled:cursor-not-allowed disabled:opacity-60"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => setSimulating((s) => !s)}
+        >
+          {simulating ? "Pause" : "Simulate"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

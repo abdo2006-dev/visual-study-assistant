@@ -128,6 +128,33 @@
     light damping so it settles instead of oscillating forever) frame by
     frame, so releasing it near the unstable equilibrium visibly swings
     toward alignment.
+- **Milestone 19** — PhET-style interactivity extended to every template
+  where it genuinely fits, not just the electric dipole (this has no
+  Gemini cost either way — the animations are hand-built React components,
+  not something the model generates per use):
+  - New shared `useAnimationFrame` hook (`src/hooks/useAnimationFrame.ts`)
+    replaces the rAF-loop boilerplate `particle-container`, `wave-diagram`,
+    and now `electric-dipole` each reimplemented inline.
+  - `radial-charged-sphere`, `long-charged-wire`, and `infinite-plane`
+    gained a "Simulate" button that auto-sweeps the observation point back
+    and forth across the boundary, instead of requiring a manual drag.
+  - `simple-circuit` gained a "Play current flow" toggle — small dots
+    trace the outer circuit loop when `showCurrentDirection` is set,
+    faster for a higher computed current.
+  - `force-vector-diagram` gained a "Simulate" toggle (when
+    `showResultant` is set) showing an object accelerating in the
+    resultant's direction — a simplified F=ma demo (no mass parameter
+    exists in the schema, so this is a stylistic pacing choice, not a
+    physical constant), resetting once it leaves the frame.
+  - `process-flow-diagram`'s Play/Next buttons no longer disappear when
+    the AI didn't set `animateProgression: true` — a user can always step
+    through manually.
+  - `particle-container` and `wave-diagram` already had a Play/Pause
+    toggle from earlier milestones; `coordinate-geometry` was left static
+    since it's a generic math-plotting fallback with no single canonical
+    "system evolving in time" to simulate; `electric-dipole`'s
+    `far-field-comparison` mode has no time dynamics either (just a fixed
+    observation distance).
 
 ## Known limitations / deliberately out of scope
 

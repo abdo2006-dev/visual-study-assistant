@@ -36,3 +36,30 @@ export function angleDegreesOf({ x, y }: Vector2D): number {
 export function componentsToPolar(v: Vector2D): PolarVector {
   return { magnitude: magnitudeOf(v), angleDegrees: angleDegreesOf(v) };
 }
+
+export interface ParticleMotionState {
+  position: Vector2D;
+  velocity: Vector2D;
+}
+
+/**
+ * Advances a unit-mass particle's position/velocity under a constant
+ * acceleration for `dt` seconds (semi-implicit Euler, matching this app's
+ * other animated templates) — a simplified F=ma demo for the resultant
+ * force, since the schema has no mass parameter to divide by.
+ */
+export function stepParticleMotion(
+  state: ParticleMotionState,
+  acceleration: Vector2D,
+  dt: number
+): ParticleMotionState {
+  const velocity = {
+    x: state.velocity.x + acceleration.x * dt,
+    y: state.velocity.y + acceleration.y * dt,
+  };
+  const position = {
+    x: state.position.x + velocity.x * dt,
+    y: state.position.y + velocity.y * dt,
+  };
+  return { position, velocity };
+}

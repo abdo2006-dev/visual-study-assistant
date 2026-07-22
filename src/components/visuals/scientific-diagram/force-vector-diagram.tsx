@@ -2,17 +2,26 @@
 
 import { useId, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import type { ForceVectorDiagramParams } from "@/lib/schema/templates/forceVectorDiagram";
 
 import {
   componentsToPolar,
   resultantComponents,
+  stepParticleMotion,
   vectorComponents,
 } from "./force-vector-diagram-math";
 
 const SIZE = 400;
 const CENTER = SIZE / 2;
 const PX_PER_UNIT = 150;
+// Scales the resultant (typically magnitude ≤ ~1, since each vector's own
+// magnitude is capped at 1) up to a visually legible acceleration — there's
+// no mass parameter in the schema to divide by, so this is a stylistic
+// pacing choice, not a physical constant.
+const ACCELERATION_SCALE = 2;
+const RESET_DISTANCE_UNITS = 1.8;
 
 function screenToSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   const point = svg.createSVGPoint();
@@ -32,6 +41,8 @@ export function ForceVectorDiagram({
   const { vectors: initialVectors, showResultant, allowDragging } = parameters;
   const [coordinateSystem, setCoordinateSystem] = useState(parameters.coordinateSystem);
   const [vectors, setVectors] = useState(initialVectors);
+  const [simulating, setSimulating] = useState(false);
+  const [motion, setMotion] = useState({ position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } });
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingIdRef = useRef<string | null>(null);
   const markerId = useId();
@@ -39,8 +50,30 @@ export function ForceVectorDiagram({
   const resultant = showResultant ? resultantComponents(vectors) : null;
   const resultantPolar = resultant ? componentsToPolar(resultant) : null;
 
+  useAnimationFrame(simulating && !!resultant, (dt) => {
+    setMotion((current) => {
+      const next = stepParticleMotion(
+        current,
+        { x: (resultant?.x ?? 0) * ACCELERATION_SCALE, y: (resultant?.y ?? 0) * ACCELERATION_SCALE },
+        dt
+      );
+      const distance = Math.hypot(next.position.x, next.position.y);
+      if (distance > RESET_DISTANCE_UNITS) {
+        return { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } };
+      }
+      return next;
+    });
+  });
+
+  function handleToggleSimulate() {
+    if (!simulating) {
+      setMotion({ position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } });
+    }
+    setSimulating((s) => !s);
+  }
+
   function handlePointerDown(id: string) {
-    if (!allowDragging) return;
+    if (!allowDragging || simulating) return;
     draggingIdRef.current = id;
   }
 
@@ -70,23 +103,30 @@ export function ForceVectorDiagram({
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium">Force diagram</p>
-        <div className="flex overflow-hidden rounded-md border border-border text-xs">
-          {(["cartesian", "polar"] as const).map((system) => (
-            <button
-              key={system}
-              type="button"
-              onClick={() => setCoordinateSystem(system)}
-              className={`px-2 py-1 capitalize ${
-                coordinateSystem === system
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent text-muted-foreground"
-              }`}
-            >
-              {system}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {showResultant && resultant && (
+            <Button size="sm" variant="outline" onClick={handleToggleSimulate}>
+              {simulating ? "Pause" : "Simulate"}
+            </Button>
+          )}
+          <div className="flex overflow-hidden rounded-md border border-border text-xs">
+            {(["cartesian", "polar"] as const).map((system) => (
+              <button
+                key={system}
+                type="button"
+                onClick={() => setCoordinateSystem(system)}
+                className={`px-2 py-1 capitalize ${
+                  coordinateSystem === system
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-muted-foreground"
+                }`}
+              >
+                {system}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -190,11 +230,28 @@ export function ForceVectorDiagram({
             style={{ color: "var(--color-foreground)" }}
           />
         )}
+
+        {simulating && (
+          <circle
+            cx={CENTER + motion.position.x * PX_PER_UNIT}
+            cy={CENTER + motion.position.y * PX_PER_UNIT}
+            r={7}
+            fill="var(--color-primary)"
+          />
+        )}
       </svg>
 
-      {allowDragging && (
+      {allowDragging && !simulating && (
         <p className="text-xs text-muted-foreground">
           Drag a vector&apos;s tip to change its magnitude and direction.
+        </p>
+      )}
+
+      {simulating && (
+        <p className="text-xs text-muted-foreground">
+          Simulating: an object released at the center accelerates in the
+          resultant&apos;s direction, by Newton&apos;s second law (F = ma) —
+          it resets once it leaves the frame.
         </p>
       )}
 

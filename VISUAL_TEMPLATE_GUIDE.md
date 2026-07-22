@@ -114,6 +114,16 @@ near-duplicate template — see `electric-dipole`'s `"torque-in-field"` vs
 lessons keep rendering the same way), and the component branching to a
 different sub-view per mode.
 
+If a template has a genuine "system evolving in time" to show (not just a
+static parametric slider), prefer a real frame-by-frame simulation over
+prose describing the behavior — see `electric-dipole` (torque dynamics),
+`simple-circuit` (current flow), and `force-vector-diagram` (a resultant
+accelerating an object) for examples. Use the shared `useAnimationFrame`
+hook (`src/hooks/useAnimationFrame.ts`) rather than reimplementing the rAF
+loop — it just calls `onFrame(dtSeconds)` while `active` is true. This has
+no Gemini-quota cost either way: these are hand-built components, not
+something the model generates per use.
+
 ## Accessibility
 
 Every `VisualBlock` carries `accessibilityDescription`, rendered by

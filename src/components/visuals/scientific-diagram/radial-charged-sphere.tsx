@@ -1,8 +1,10 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Equation } from "@/components/equations/equation";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import type { RadialChargedSphereParams } from "@/lib/schema/templates/radialChargedSphere";
 
 import {
@@ -23,6 +25,7 @@ const MAX_RATIO = 2;
 const MAX_ARROW_LENGTH = 32;
 const CHARGE_MARKER_COUNT = 36;
 const OBSERVATION_ANGLE = -Math.PI / 2; // straight up
+const SWEEP_RATIO_PER_SEC = 0.4; // full 0→MAX_RATIO sweep takes ~5s
 
 function polar(ratio: number, angle = OBSERVATION_ANGLE) {
   return {
@@ -47,9 +50,31 @@ export function RadialChargedSphere({
   } = parameters;
 
   const [ratio, setRatio] = useState(initialObservationRadiusRatio);
+  const [simulating, setSimulating] = useState(false);
+  const sweepDirectionRef = useRef(1);
   const sliderId = useId();
   const region = getRegion(ratio);
   const isPositive = chargeSign === "positive";
+
+  useAnimationFrame(simulating, (dt) => {
+    setRatio((current) => {
+      const next = current + sweepDirectionRef.current * SWEEP_RATIO_PER_SEC * dt;
+      if (next >= MAX_RATIO) {
+        sweepDirectionRef.current = -1;
+        return MAX_RATIO;
+      }
+      if (next <= 0) {
+        sweepDirectionRef.current = 1;
+        return 0;
+      }
+      return next;
+    });
+  });
+
+  function handleSliderChange(value: number) {
+    setSimulating(false);
+    setRatio(value);
+  }
 
   const chargeMarkers = useMemo(
     () => generateChargeMarkerPositions(CHARGE_MARKER_COUNT, sphereType),
@@ -257,10 +282,19 @@ export function RadialChargedSphere({
           max={MAX_RATIO}
           step={0.01}
           value={ratio}
-          onChange={(event) => setRatio(Number(event.target.value))}
+          onChange={(event) => handleSliderChange(Number(event.target.value))}
+          disabled={simulating}
           aria-valuetext={`r = ${ratio.toFixed(2)} R, ${region} the sphere`}
-          className="w-full"
+          className="w-full disabled:cursor-not-allowed disabled:opacity-60"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => setSimulating((s) => !s)}
+        >
+          {simulating ? "Pause" : "Simulate"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

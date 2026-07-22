@@ -1,13 +1,22 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import type { SimpleCircuitParams } from "@/lib/schema/templates/simpleCircuit";
 
-import { calculateCircuit } from "./simple-circuit-math";
+import { calculateCircuit, pointOnRectangularLoop } from "./simple-circuit-math";
 
 const WIDTH = 400;
 const HEIGHT = 220;
+const CURRENT_DOT_COUNT = 4;
+// Loop fractions per second, scaled by current so a heavier-current circuit
+// visibly flows faster — clamped so an extreme resistor value can't make
+// the dots crawl or blur past readability.
+const MIN_LOOP_SPEED = 0.05;
+const MAX_LOOP_SPEED = 0.35;
+const LOOP_SPEED_PER_AMP = 0.15;
 
 function zigzagPath(x1: number, y1: number, x2: number, y2: number, segments = 6, amplitude = 8) {
   const dx = x2 - x1;
@@ -50,11 +59,35 @@ export function SimpleCircuit({ parameters }: { parameters: SimpleCircuitParams 
     ? []
     : resistors.map((_, i) => leftX + ((i + 1) * (rightX - leftX)) / (resistors.length + 1));
 
+  const [playing, setPlaying] = useState(false);
+  const [loopProgress, setLoopProgress] = useState(0);
+  const loopCorners = [
+    { x: leftX, y: topY },
+    { x: rightX, y: topY },
+    { x: rightX, y: bottomY },
+    { x: leftX, y: bottomY },
+  ];
+  const loopSpeed = Math.min(
+    MAX_LOOP_SPEED,
+    Math.max(MIN_LOOP_SPEED, result.totalCurrentAmps * LOOP_SPEED_PER_AMP)
+  );
+
+  useAnimationFrame(playing, (dt) => {
+    setLoopProgress((current) => current + loopSpeed * dt);
+  });
+
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border p-4">
-      <p className="text-sm font-medium">
-        {isSeries ? "Series" : "Parallel"} circuit — {voltageSource}V source
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">
+          {isSeries ? "Series" : "Parallel"} circuit — {voltageSource}V source
+        </p>
+        {showCurrentDirection && (
+          <Button size="sm" variant="outline" onClick={() => setPlaying((p) => !p)}>
+            {playing ? "Pause" : "Play current flow"}
+          </Button>
+        )}
+      </div>
 
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -135,6 +168,24 @@ export function SimpleCircuit({ parameters }: { parameters: SimpleCircuitParams 
             })}
           </g>
         )}
+
+        {showCurrentDirection &&
+          playing &&
+          Array.from({ length: CURRENT_DOT_COUNT }, (_, i) => {
+            const point = pointOnRectangularLoop(
+              loopProgress + i / CURRENT_DOT_COUNT,
+              loopCorners
+            );
+            return (
+              <circle
+                key={i}
+                cx={point.x}
+                cy={point.y}
+                r={4}
+                fill="var(--color-primary)"
+              />
+            );
+          })}
       </svg>
 
       {showValues && (

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Equation } from "@/components/equations/equation";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import type { ElectricDipoleParams } from "@/lib/schema/templates/electricDipole";
 
 import {
@@ -22,7 +23,6 @@ import {
 } from "./electric-dipole-physics";
 
 const SIMULATION_NUDGE_DEG_PER_SEC = 8;
-const MAX_FRAME_DT_SEC = 0.05;
 const NEAR_EQUILIBRIUM_DEG = 8;
 
 const SIZE = 440;
@@ -61,28 +61,13 @@ function TorqueInFieldDiagram({ parameters }: { parameters: ElectricDipoleParams
   const angularVelocityRef = useRef(0);
   const sliderId = useId();
 
-  useEffect(() => {
-    if (!simulating) return;
-    let frameId: number;
-    let lastTimestamp: number | null = null;
-
-    function step(timestamp: number) {
-      if (lastTimestamp === null) lastTimestamp = timestamp;
-      const dt = Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_DT_SEC);
-      lastTimestamp = timestamp;
-
-      setTheta((current) => {
-        const acceleration = dipoleAngularAcceleration(current, angularVelocityRef.current);
-        angularVelocityRef.current += acceleration * dt;
-        return current + angularVelocityRef.current * dt;
-      });
-
-      frameId = requestAnimationFrame(step);
-    }
-
-    frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
-  }, [simulating]);
+  useAnimationFrame(simulating, (dt) => {
+    setTheta((current) => {
+      const acceleration = dipoleAngularAcceleration(current, angularVelocityRef.current);
+      angularVelocityRef.current += acceleration * dt;
+      return current + angularVelocityRef.current * dt;
+    });
+  });
 
   function handleToggleSimulate() {
     if (simulating) {
