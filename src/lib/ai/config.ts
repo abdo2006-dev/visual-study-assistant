@@ -25,6 +25,9 @@ export const geminiModels: Record<EconomyMode, string> = {
 };
 
 export const geminiImageGenerationModel = "gemini-3.1-flash-image";
+export const huggingFaceImageGenerationModel =
+  process.env.HF_IMAGE_MODEL || "black-forest-labs/FLUX.1-schnell";
+export const huggingFaceImageProvider = process.env.HF_IMAGE_PROVIDER || "fal-ai";
 
 export class MissingApiKeyError extends Error {
   constructor() {
@@ -46,6 +49,10 @@ export function getGeminiApiKey(): string {
     throw new MissingApiKeyError();
   }
   return key;
+}
+
+export function getHuggingFaceToken(): string | undefined {
+  return process.env.HF_TOKEN;
 }
 
 export function getModelFor(mode: EconomyMode): string {

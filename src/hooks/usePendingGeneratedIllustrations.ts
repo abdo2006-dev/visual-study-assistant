@@ -67,6 +67,8 @@ export function usePendingGeneratedIllustrations(
                 ? err.message
                 : "Failed to generate that visual image.",
           }));
+        } finally {
+          inFlightRef.current.delete(item.visualId);
         }
 
         if (!cancelled) onLessonChanged();

@@ -76,6 +76,36 @@ export function LessonWorkspace({
     }
   }
 
+  async function handleRetryGeneratedIllustration(sectionId: string, visualId: string) {
+    const updatedLesson: VisualLesson = {
+      ...lesson,
+      updatedAt: new Date().toISOString(),
+      sections: lesson.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        return {
+          ...section,
+          visuals: section.visuals.map((visual) => {
+            if (visual.id !== visualId) return visual;
+            const parameters = { ...visual.parameters };
+            delete parameters.imageDataUrl;
+            delete parameters.mimeType;
+
+            return {
+              ...visual,
+              parameters,
+              generationStatus: "pending" as const,
+              error: undefined,
+            };
+          }),
+        };
+      }),
+    };
+
+    await saveLesson(updatedLesson);
+    onLessonChanged();
+  }
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -177,7 +207,16 @@ export function LessonWorkspace({
             {section.visuals.length > 0 && (
               <div className="flex flex-col gap-4">
                 {section.visuals.map((visual) => (
-                  <VisualBlockRenderer key={visual.id} block={visual} />
+                  <VisualBlockRenderer
+                    key={visual.id}
+                    block={visual}
+                    onRetryGeneratedIllustration={
+                      visual.templateId === "generated-illustration" &&
+                      visual.generationStatus === "error"
+                        ? () => handleRetryGeneratedIllustration(section.id, visual.id)
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             )}

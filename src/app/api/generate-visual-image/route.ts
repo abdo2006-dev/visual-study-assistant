@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getGeminiClient } from "@/lib/ai/gemini/client";
 import { generateEducationalImage } from "@/lib/ai/gemini/generateEducationalImage";
 import { jsonWithUsage } from "@/lib/ai/jsonWithUsage";
 import { mapAiErrorToResponse } from "@/lib/ai/routeErrorResponse";
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
 
   try {
     return await jsonWithUsage(async () =>
-      generateEducationalImage(getGeminiClient(), parsedBody.data.imagePrompt, signal)
+      generateEducationalImage(parsedBody.data.imagePrompt, signal)
     );
   } catch (err) {
     return mapAiErrorToResponse(err, {

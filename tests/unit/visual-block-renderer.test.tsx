@@ -1,5 +1,6 @@
+import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { VisualBlockRenderer } from "@/components/visuals/visual-block-renderer";
 import { visualBlockSchema } from "@/lib/schema/visualBlocks";
@@ -98,5 +99,26 @@ describe("VisualBlockRenderer", () => {
     );
 
     expect(screen.getByText("Generating a custom illustration...")).toBeInTheDocument();
+  });
+
+  it("shows a retry action for failed generated illustrations", async () => {
+    const onRetry = vi.fn();
+    render(
+      <VisualBlockRenderer
+        block={makeBlock({
+          type: "generated-illustration",
+          templateId: "generated-illustration",
+          generationStatus: "error",
+          error: "Gemini is rate limited.",
+          parameters: {
+            imagePrompt: "Show a dielectric slab polarizing between capacitor plates.",
+          },
+        })}
+        onRetryGeneratedIllustration={onRetry}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

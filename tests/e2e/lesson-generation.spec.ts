@@ -113,3 +113,69 @@ test("shows an error and preserves input when the API call fails", async ({ page
   ).toBeVisible();
   await expect(textarea).toHaveValue("some source text");
 });
+
+test("failed generated illustrations can be retried from the lesson page", async ({ page }) => {
+  const lessonWithFailedImage = {
+    ...mockLesson,
+    id: "e2e-failed-generated-image",
+    sections: [
+      {
+        ...mockLesson.sections[0],
+        visuals: [
+          {
+            id: "generated-visual-1",
+            type: "generated-illustration",
+            templateId: "generated-illustration",
+            title: "Battery disconnected illustration",
+            educationalPurpose: "Shows the dielectric insertion state.",
+            accessibilityDescription: "A generated capacitor illustration.",
+            parameters: {
+              imagePrompt:
+                "Show a dielectric inserted into a disconnected capacitor.",
+              caption: "Disconnected capacitor illustration.",
+            },
+            controls: [],
+            annotations: [],
+            factualChecks: [],
+            generationStatus: "error",
+            error: "Gemini is rate limited.",
+          },
+        ],
+      },
+    ],
+  };
+
+  let imageCalls = 0;
+  await page.route("**/api/lesson-plan", async (route) => {
+    await route.fulfill({ status: 200, json: lessonWithFailedImage });
+  });
+  await page.route("**/api/generate-visual-image", async (route) => {
+    imageCalls += 1;
+    await route.fulfill({
+      status: 200,
+      json: {
+        dataUrl: "data:image/png;base64,aW1hZ2U=",
+        mimeType: "image/png",
+        apiUsage: [],
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder("Paste a text explanation here...")
+    .fill("A dielectric inserted into a disconnected capacitor.");
+  await page.getByRole("button", { name: "Generate lesson" }).click();
+
+  await expect(page).toHaveURL(/\/lessons\/e2e-failed-generated-image$/);
+  await expect(page.getByText("Gemini is rate limited.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  expect(imageCalls).toBe(0);
+
+  await page.getByRole("button", { name: "Retry" }).click();
+
+  await expect(
+    page.getByAltText("Disconnected capacitor illustration.")
+  ).toBeVisible();
+  expect(imageCalls).toBe(1);
+});

@@ -2,7 +2,13 @@ import { getVisualTemplate } from "@/components/visuals/registry";
 import { UnsupportedVisual } from "@/components/visuals/unsupported-visual";
 import type { VisualBlock } from "@/lib/schema/visualBlocks";
 
-export function VisualBlockRenderer({ block }: { block: VisualBlock }) {
+export function VisualBlockRenderer({
+  block,
+  onRetryGeneratedIllustration,
+}: {
+  block: VisualBlock;
+  onRetryGeneratedIllustration?: () => void;
+}) {
   const template = getVisualTemplate(block.templateId);
   if (!template) {
     return (
@@ -18,6 +24,14 @@ export function VisualBlockRenderer({ block }: { block: VisualBlock }) {
       <UnsupportedVisual
         title={block.title}
         reason={block.error ?? "This generated illustration could not be created."}
+        action={
+          onRetryGeneratedIllustration
+            ? {
+                label: "Retry",
+                onClick: onRetryGeneratedIllustration,
+              }
+            : undefined
+        }
       />
     );
   }
