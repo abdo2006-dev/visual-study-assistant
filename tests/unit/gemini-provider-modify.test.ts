@@ -106,54 +106,40 @@ describe("GeminiProvider.modifyLesson", () => {
     });
   });
 
-  it("materializes generated-illustration patches with Gemini image data", async () => {
-    generateContent
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
-          reply: "Added a generated illustration.",
-          patches: [
-            {
-              op: "add-visual",
-              sectionId: "s1",
-              type: "generated-illustration",
-              templateId: "generated-illustration",
-              title: "Battery connected vs disconnected",
-              educationalPurpose: "Show why the two dielectric cases differ.",
-              accessibilityDescription:
-                "A generated comparison image for two dielectric capacitor cases.",
-              parametersJson:
-                '{"imagePrompt":"Create a two panel diagram comparing dielectric insertion after disconnecting a battery versus while connected.","caption":"Disconnected keeps Q constant; connected keeps V constant."}',
-            },
-          ],
-        }),
-      })
-      .mockResolvedValueOnce({
-        candidates: [
+  it("returns generated-illustration patches as pending image prompts without blocking on image data", async () => {
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        reply: "Added a generated illustration.",
+        patches: [
           {
-            content: {
-              parts: [{ inlineData: { mimeType: "image/png", data: "aW1hZ2U=" } }],
-            },
+            op: "add-visual",
+            sectionId: "s1",
+            type: "generated-illustration",
+            templateId: "generated-illustration",
+            title: "Battery connected vs disconnected",
+            educationalPurpose: "Show why the two dielectric cases differ.",
+            accessibilityDescription:
+              "A generated comparison image for two dielectric capacitor cases.",
+            parametersJson:
+              '{"imagePrompt":"Create a two panel diagram comparing dielectric insertion after disconnecting a battery versus while connected.","caption":"Disconnected keeps Q constant; connected keeps V constant."}',
           },
         ],
-        usageMetadata: {},
-      });
+      }),
+    });
 
-    const progress: string[] = [];
     const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
     const result = await new GeminiProvider().modifyLesson({
       lesson: condensedLesson,
       message: "make an actual image for this",
-      onProgress: (message) => progress.push(message),
     });
 
-    expect(generateContent).toHaveBeenCalledTimes(2);
-    expect(progress).toContain("Generating a custom visual image...");
+    expect(generateContent).toHaveBeenCalledTimes(1);
     expect(result.patches[0]).toMatchObject({
       op: "add-visual",
       templateId: "generated-illustration",
       parameters: {
-        imageDataUrl: "data:image/png;base64,aW1hZ2U=",
-        mimeType: "image/png",
+        imagePrompt:
+          "Create a two panel diagram comparing dielectric insertion after disconnecting a battery versus while connected.",
       },
     });
   });

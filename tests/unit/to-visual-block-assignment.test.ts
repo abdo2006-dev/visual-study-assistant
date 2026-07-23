@@ -28,6 +28,18 @@ describe("toVisualBlockAssignment", () => {
     expect(result?.visual.parameters).toMatchObject({ sphereType: "solid-insulator" });
   });
 
+  it("marks generated illustrations as pending until image data is materialized", () => {
+    const result = toVisualBlockAssignment({
+      ...baseRaw,
+      type: "generated-illustration",
+      templateId: "generated-illustration",
+      parametersJson:
+        '{"imagePrompt":"Show a dielectric capacitor comparison with clear labels."}',
+    });
+
+    expect(result?.visual.generationStatus).toBe("pending");
+  });
+
   it("returns null for an unrecognized templateId", () => {
     expect(toVisualBlockAssignment({ ...baseRaw, templateId: "not-a-real-template" })).toBeNull();
   });

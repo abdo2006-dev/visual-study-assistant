@@ -82,7 +82,11 @@ export function applyLessonPatch(lesson: VisualLesson, patch: LessonPatch): Visu
             annotations: [],
             sourceSectionId: patch.sectionId,
             factualChecks: [],
-            generationStatus: "ready" as const,
+            generationStatus:
+              patch.templateId === "generated-illustration" &&
+              typeof patch.parameters.imageDataUrl !== "string"
+                ? ("pending" as const)
+                : ("ready" as const),
           },
         ],
       }));

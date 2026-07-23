@@ -97,6 +97,6 @@ describe("VisualBlockRenderer", () => {
       />
     );
 
-    expect(screen.getByText("Generated illustration is not available yet.")).toBeInTheDocument();
+    expect(screen.getByText("Generating a custom illustration...")).toBeInTheDocument();
   });
 });

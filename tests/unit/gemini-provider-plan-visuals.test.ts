@@ -120,46 +120,35 @@ describe("GeminiProvider.planVisuals", () => {
     });
   });
 
-  it("materializes generated-illustration assignments with Gemini image data", async () => {
-    generateContent
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
-          assignments: [
-            {
-              sectionId: "s1",
-              type: "generated-illustration",
-              templateId: "generated-illustration",
-              title: "Two dielectric capacitor cases",
-              educationalPurpose:
-                "Compare constant charge and constant voltage after inserting a dielectric.",
-              accessibilityDescription:
-                "A two panel generated illustration comparing disconnected and connected battery cases.",
-              parametersJson:
-                '{"imagePrompt":"Create a two-panel educational diagram: left capacitor disconnected so Q stays constant and V drops after dielectric insertion; right capacitor connected so V stays constant and battery supplies extra Q.","caption":"Disconnected: Q constant. Connected: V constant."}',
-            },
-          ],
-        }),
-      })
-      .mockResolvedValueOnce({
-        candidates: [
+  it("returns generated-illustration assignments as image prompts without blocking on image data", async () => {
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        assignments: [
           {
-            content: {
-              parts: [{ inlineData: { mimeType: "image/png", data: "aW1hZ2U=" } }],
-            },
+            sectionId: "s1",
+            type: "generated-illustration",
+            templateId: "generated-illustration",
+            title: "Two dielectric capacitor cases",
+            educationalPurpose:
+              "Compare constant charge and constant voltage after inserting a dielectric.",
+            accessibilityDescription:
+              "A two panel generated illustration comparing disconnected and connected battery cases.",
+            parametersJson:
+              '{"imagePrompt":"Create a two-panel educational diagram: left capacitor disconnected so Q stays constant and V drops after dielectric insertion; right capacitor connected so V stays constant and battery supplies extra Q.","caption":"Disconnected: Q constant. Connected: V constant."}',
           },
         ],
-        usageMetadata: {},
-      });
+      }),
+    });
 
     const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
     const result = await new GeminiProvider().planVisuals({ lesson });
 
-    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(generateContent).toHaveBeenCalledTimes(1);
     expect(result.assignments[0].visual).toMatchObject({
       templateId: "generated-illustration",
       parameters: {
-        imageDataUrl: "data:image/png;base64,aW1hZ2U=",
-        mimeType: "image/png",
+        imagePrompt:
+          "Create a two-panel educational diagram: left capacitor disconnected so Q stays constant and V drops after dielectric insertion; right capacitor connected so V stays constant and battery supplies extra Q.",
       },
     });
   });

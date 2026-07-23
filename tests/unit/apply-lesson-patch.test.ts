@@ -85,6 +85,23 @@ describe("applyLessonPatch", () => {
     expect(section?.visuals[0].id).toBeTruthy();
   });
 
+  it("add-visual marks generated illustrations pending until image data arrives", () => {
+    const result = applyLessonPatch(lesson(), {
+      op: "add-visual",
+      sectionId: "region-inside",
+      type: "generated-illustration",
+      templateId: "generated-illustration",
+      title: "Generated comparison",
+      educationalPurpose: "test",
+      accessibilityDescription: "test",
+      parameters: {
+        imagePrompt: "Show a dielectric capacitor comparison with clear labels.",
+      },
+    });
+    const section = result.sections.find((s) => s.id === "region-inside");
+    expect(section?.visuals[0].generationStatus).toBe("pending");
+  });
+
   it("remove-section deletes the section", () => {
     const result = applyLessonPatch(lesson(), {
       op: "remove-section",

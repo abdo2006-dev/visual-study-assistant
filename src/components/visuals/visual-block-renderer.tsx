@@ -13,6 +13,15 @@ export function VisualBlockRenderer({ block }: { block: VisualBlock }) {
     );
   }
 
+  if (block.templateId === "generated-illustration" && block.generationStatus === "error") {
+    return (
+      <UnsupportedVisual
+        title={block.title}
+        reason={block.error ?? "This generated illustration could not be created."}
+      />
+    );
+  }
+
   const parsed = template.paramsSchema.safeParse(block.parameters);
   if (!parsed.success) {
     return (

@@ -14,9 +14,9 @@ export function GeneratedIllustration({
       <div
         className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground"
         role="img"
-        aria-label="Generated illustration is not available yet."
+        aria-label="Generated illustration is being created."
       >
-        Generated illustration is not available yet.
+        Generating a custom illustration...
       </div>
     );
   }

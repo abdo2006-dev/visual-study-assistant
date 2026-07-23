@@ -44,7 +44,11 @@ export function toVisualBlockAssignment(raw: RawVisualAssignment): VisualAssignm
     controls: [],
     annotations: [],
     factualChecks: [],
-    generationStatus: "ready",
+    generationStatus:
+      raw.templateId === "generated-illustration" &&
+      typeof (paramsResult.data as Record<string, unknown>).imageDataUrl !== "string"
+        ? "pending"
+        : "ready",
   };
 
   return { sectionId: raw.sectionId, visual };
