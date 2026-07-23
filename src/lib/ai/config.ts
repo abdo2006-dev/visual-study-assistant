@@ -24,10 +24,15 @@ export const geminiModels: Record<EconomyMode, string> = {
   "highest-quality": "gemini-pro-latest",
 };
 
-export const geminiImageGenerationModel = "gemini-3.1-flash-image";
+export const geminiImageGenerationModels = (
+  process.env.GEMINI_IMAGE_MODELS || "gemini-3.1-flash-lite-image,gemini-3.1-flash-image"
+)
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean);
 export const huggingFaceImageGenerationModel =
   process.env.HF_IMAGE_MODEL || "black-forest-labs/FLUX.1-schnell";
-export const huggingFaceImageProvider = process.env.HF_IMAGE_PROVIDER || "fal-ai";
+export const huggingFaceImageProvider = process.env.HF_IMAGE_PROVIDER || "hf-inference";
 
 export class MissingApiKeyError extends Error {
   constructor() {

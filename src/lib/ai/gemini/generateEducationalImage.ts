@@ -2,10 +2,10 @@ import "server-only";
 
 import { InferenceClient } from "@huggingface/inference";
 import type { InferenceProviderOrPolicy } from "@huggingface/inference";
-import type { GoogleGenAI, Modality } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 
 import {
-  geminiImageGenerationModel,
+  geminiImageGenerationModels,
   getHuggingFaceToken,
   huggingFaceImageGenerationModel,
   huggingFaceImageProvider,
@@ -14,7 +14,6 @@ import { getGeminiClient } from "@/lib/ai/gemini/client";
 import { AiGenerationError } from "@/lib/ai/gemini/generateWithRepair";
 import { recordGeminiUsage } from "@/lib/ai/usageContext";
 
-const IMAGE_RESPONSE_MODALITIES = ["TEXT", "IMAGE"] as unknown as Modality[];
 const HUGGING_FACE_IMAGE_PROVIDERS: readonly string[] = [
   "fal-ai",
   "hf-inference",
@@ -42,23 +41,21 @@ export async function generateEducationalImage(
   imagePrompt: string,
   signal?: AbortSignal
 ): Promise<{ dataUrl: string; mimeType: string }> {
-  const huggingFaceToken = getHuggingFaceToken();
-  if (huggingFaceToken) {
-    try {
-      return await generateHuggingFaceEducationalImage(
-        huggingFaceToken,
-        imagePrompt,
-        signal
-      );
-    } catch (err) {
-      console.error(
-        "[generate-visual-image] Hugging Face image generation failed, falling back to Gemini",
-        err instanceof Error ? err.message : err
-      );
+  try {
+    return await generateGeminiEducationalImage(getGeminiClient(), imagePrompt, signal);
+  } catch (geminiError) {
+    const huggingFaceToken = getHuggingFaceToken();
+    if (!huggingFaceToken) {
+      throw geminiError;
     }
-  }
 
-  return generateGeminiEducationalImage(getGeminiClient(), imagePrompt, signal);
+    console.error(
+      "[generate-visual-image] Gemini image generation failed, falling back to Hugging Face",
+      geminiError instanceof Error ? geminiError.message : geminiError
+    );
+
+    return generateHuggingFaceEducationalImage(huggingFaceToken, imagePrompt, signal);
+  }
 }
 
 async function generateGeminiEducationalImage(
@@ -66,36 +63,56 @@ async function generateGeminiEducationalImage(
   imagePrompt: string,
   signal?: AbortSignal
 ): Promise<{ dataUrl: string; mimeType: string }> {
-  const response = await client.models.generateContent({
-    model: geminiImageGenerationModel,
-    contents: buildEducationalImagePrompt(imagePrompt),
-    config: {
-      responseModalities: IMAGE_RESPONSE_MODALITIES,
-      abortSignal: signal,
-    },
-  });
+  let lastError: unknown;
 
-  const usage = response.usageMetadata;
-  recordGeminiUsage({
-    model: geminiImageGenerationModel,
-    promptTokens: usage?.promptTokenCount ?? 0,
-    candidatesTokens: usage?.candidatesTokenCount ?? 0,
-    thoughtsTokens: usage?.thoughtsTokenCount ?? 0,
-    totalTokens: usage?.totalTokenCount ?? 0,
-  });
+  for (const model of geminiImageGenerationModels) {
+    try {
+      const interaction = await client.interactions.create(
+        {
+          model,
+          input: buildEducationalImagePrompt(imagePrompt),
+          response_modalities: ["image"],
+          response_format: {
+            type: "image",
+            mime_type: "image/jpeg",
+            aspect_ratio: "16:9",
+          },
+        },
+        signal ? { fetchOptions: { signal } } : undefined
+      );
 
-  const parts = response.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find(
-    (part) => part.inlineData?.data && part.inlineData.mimeType?.startsWith("image/")
-  );
-  const data = imagePart?.inlineData?.data;
-  const mimeType = imagePart?.inlineData?.mimeType;
+      recordGeminiUsage({
+        model,
+        promptTokens: interaction.usage?.total_input_tokens ?? 0,
+        candidatesTokens: interaction.usage?.total_output_tokens ?? 0,
+        thoughtsTokens: interaction.usage?.total_thought_tokens ?? 0,
+        totalTokens: interaction.usage?.total_tokens ?? 0,
+      });
 
-  if (!data || !mimeType) {
-    throw new AiGenerationError("Gemini did not return an image for that visual.");
+      const data = interaction.output_image?.data;
+      const mimeType = interaction.output_image?.mime_type ?? "image/jpeg";
+
+      if (!data || !mimeType.startsWith("image/")) {
+        throw new AiGenerationError(`Gemini ${model} did not return an image.`);
+      }
+
+      return { dataUrl: `data:${mimeType};base64,${data}`, mimeType };
+    } catch (err) {
+      lastError = err;
+
+      if (signal?.aborted) {
+        throw err;
+      }
+
+      console.error(
+        "[generate-visual-image] Gemini image model failed",
+        model,
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
-  return { dataUrl: `data:${mimeType};base64,${data}`, mimeType };
+  throw lastError ?? new AiGenerationError("Gemini did not return an image for that visual.");
 }
 
 async function generateHuggingFaceEducationalImage(
@@ -136,5 +153,5 @@ async function generateHuggingFaceEducationalImage(
 function getHuggingFaceImageProvider(): InferenceProviderOrPolicy {
   return HUGGING_FACE_IMAGE_PROVIDERS.includes(huggingFaceImageProvider)
     ? (huggingFaceImageProvider as InferenceProviderOrPolicy)
-    : "fal-ai";
+    : "hf-inference";
 }

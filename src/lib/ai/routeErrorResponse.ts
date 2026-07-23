@@ -70,12 +70,27 @@ function extractAiServiceError(err: unknown): AiServiceErrorDetails | null {
     const parsed = parsePossibleJson(err.message);
     const fromParsed = extractAiServiceErrorFromObject(parsed);
     if (fromParsed) return fromParsed;
+
+    const fromMessage = extractAiServiceErrorFromMessage(err.message);
+    if (fromMessage) return fromMessage;
   }
 
   const fromObject = extractAiServiceErrorFromObject(err);
   if (fromObject) return fromObject;
 
   return null;
+}
+
+function extractAiServiceErrorFromMessage(message: string): AiServiceErrorDetails | null {
+  if (!/quota|rate limit|resource exhausted|exceeded/i.test(message)) return null;
+
+  const codeMatch = message.match(/^\s*(\d{3})\b/);
+  return {
+    code: codeMatch ? Number(codeMatch[1]) : undefined,
+    message,
+    retryDelay: extractRetryDelayFromMessage(message),
+    model: extractModelFromMessage(message),
+  };
 }
 
 function extractAiServiceErrorFromObject(err: unknown): AiServiceErrorDetails | null {
@@ -164,6 +179,10 @@ function extractQuotaModel(details: unknown): string | undefined {
 function extractModelFromMessage(message: string | undefined): string | undefined {
   if (!message) return undefined;
   return message.match(/model:\s*([^\s,\n]+)/i)?.[1];
+}
+
+function extractRetryDelayFromMessage(message: string): string | undefined {
+  return message.match(/retry in\s+([0-9.]+\s*s(?:econds?)?)/i)?.[1];
 }
 
 function formatRetryDelay(value: string): string {
