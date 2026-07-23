@@ -65,4 +65,38 @@ describe("VisualBlockRenderer", () => {
     );
     expect(screen.getAllByRole("img").length).toBeGreaterThan(0);
   });
+
+  it("renders a generated illustration when image data is present", () => {
+    render(
+      <VisualBlockRenderer
+        block={makeBlock({
+          type: "generated-illustration",
+          templateId: "generated-illustration",
+          parameters: {
+            imagePrompt: "Show a dielectric slab polarizing between capacitor plates.",
+            imageDataUrl: "data:image/png;base64,aW1hZ2U=",
+            caption: "A generated dielectric polarization illustration.",
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByAltText("A generated dielectric polarization illustration.")).toBeInTheDocument();
+  });
+
+  it("renders a placeholder if a generated illustration has not been materialized", () => {
+    render(
+      <VisualBlockRenderer
+        block={makeBlock({
+          type: "generated-illustration",
+          templateId: "generated-illustration",
+          parameters: {
+            imagePrompt: "Show a dielectric slab polarizing between capacitor plates.",
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByText("Generated illustration is not available yet.")).toBeInTheDocument();
+  });
 });

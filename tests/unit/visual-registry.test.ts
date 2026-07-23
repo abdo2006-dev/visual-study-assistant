@@ -27,4 +27,15 @@ describe("getVisualTemplate", () => {
   it("returns undefined for an unknown templateId", () => {
     expect(getVisualTemplate("some-future-template")).toBeUndefined();
   });
+
+  it("finds the generated-illustration template with a valid image prompt", () => {
+    const template = getVisualTemplate("generated-illustration");
+    expect(template).toBeDefined();
+    expect(template?.Component).toBeTruthy();
+    expect(
+      template?.paramsSchema.safeParse({
+        imagePrompt: "Show a clear before and after capacitor illustration.",
+      }).success
+    ).toBe(true);
+  });
 });

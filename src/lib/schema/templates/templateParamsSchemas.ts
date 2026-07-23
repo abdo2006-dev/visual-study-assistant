@@ -4,6 +4,7 @@ import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinat
 import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { electricDipoleParamsSchema } from "@/lib/schema/templates/electricDipole";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
+import { generatedIllustrationParamsSchema } from "@/lib/schema/templates/generatedIllustration";
 import { infinitePlaneParamsSchema } from "@/lib/schema/templates/infinitePlane";
 import { longChargedWireParamsSchema } from "@/lib/schema/templates/longChargedWire";
 import { particleContainerParamsSchema } from "@/lib/schema/templates/particleContainer";
@@ -26,6 +27,7 @@ export const templateParamsSchemas: Record<string, z.ZodType> = {
   "infinite-plane": infinitePlaneParamsSchema,
   "electric-dipole": electricDipoleParamsSchema,
   "dielectric-polarization": dielectricPolarizationParamsSchema,
+  "generated-illustration": generatedIllustrationParamsSchema,
   "force-vector-diagram": forceVectorDiagramParamsSchema,
   "particle-container": particleContainerParamsSchema,
   "process-flow-diagram": processFlowDiagramParamsSchema,

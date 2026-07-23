@@ -24,6 +24,8 @@ export const geminiModels: Record<EconomyMode, string> = {
   "highest-quality": "gemini-pro-latest",
 };
 
+export const geminiImageGenerationModel = "gemini-3.1-flash-image";
+
 export class MissingApiKeyError extends Error {
   constructor() {
     super(

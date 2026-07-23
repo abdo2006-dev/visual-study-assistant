@@ -154,7 +154,14 @@ export async function attachPlannedVisuals(
 }
 
 function visualFingerprint(visual: VisualBlock): string {
-  return `${visual.templateId}:${stableStringify(visual.parameters)}`;
+  return `${visual.templateId}:${stableStringify(fingerprintableParameters(visual.parameters))}`;
+}
+
+function fingerprintableParameters(parameters: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...parameters };
+  delete rest.imageDataUrl;
+  delete rest.mimeType;
+  return rest;
 }
 
 function stableStringify(value: unknown): string {

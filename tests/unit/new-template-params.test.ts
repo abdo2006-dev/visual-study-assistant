@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinateGeometry";
 import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
+import { generatedIllustrationParamsSchema } from "@/lib/schema/templates/generatedIllustration";
 import { particleContainerParamsSchema } from "@/lib/schema/templates/particleContainer";
 import { processFlowDiagramParamsSchema } from "@/lib/schema/templates/processFlowDiagram";
 import { simpleCircuitParamsSchema } from "@/lib/schema/templates/simpleCircuit";
@@ -103,5 +104,24 @@ describe("dielectricPolarizationParamsSchema", () => {
     expect(() =>
       dielectricPolarizationParamsSchema.parse({ initialAlignment: 1.5 })
     ).toThrow();
+  });
+});
+
+describe("generatedIllustrationParamsSchema", () => {
+  it("accepts an image prompt before the server has generated image data", () => {
+    const parsed = generatedIllustrationParamsSchema.parse({
+      imagePrompt: "Show a capacitor with a dielectric being pulled between plates.",
+      caption: "Dielectric insertion changes capacitor behavior.",
+    });
+    expect(parsed.imageDataUrl).toBeUndefined();
+  });
+
+  it("accepts a generated image data URL after materialization", () => {
+    const parsed = generatedIllustrationParamsSchema.parse({
+      imagePrompt: "Show polarization charges creating an opposing field.",
+      imageDataUrl: "data:image/png;base64,aW1hZ2U=",
+      mimeType: "image/png",
+    });
+    expect(parsed.mimeType).toBe("image/png");
   });
 });

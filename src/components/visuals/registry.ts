@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { z } from "zod";
 
+import { GeneratedIllustration } from "@/components/visuals/generated-illustration";
 import { CoordinateGeometryDiagram } from "@/components/visuals/mathematical-plot/coordinate-geometry-diagram";
 import { WaveDiagram } from "@/components/visuals/mathematical-plot/wave-diagram";
 import { ProcessFlowDiagram } from "@/components/visuals/process-flow/process-flow-diagram";
@@ -16,6 +17,7 @@ import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinat
 import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { electricDipoleParamsSchema } from "@/lib/schema/templates/electricDipole";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
+import { generatedIllustrationParamsSchema } from "@/lib/schema/templates/generatedIllustration";
 import { infinitePlaneParamsSchema } from "@/lib/schema/templates/infinitePlane";
 import { longChargedWireParamsSchema } from "@/lib/schema/templates/longChargedWire";
 import { particleContainerParamsSchema } from "@/lib/schema/templates/particleContainer";
@@ -74,6 +76,10 @@ export const visualTemplateRegistry: Record<string, VisualTemplateDefinition<unk
   "dielectric-polarization": defineTemplate(
     dielectricPolarizationParamsSchema,
     DielectricPolarization
+  ),
+  "generated-illustration": defineTemplate(
+    generatedIllustrationParamsSchema,
+    GeneratedIllustration
   ),
 };
 

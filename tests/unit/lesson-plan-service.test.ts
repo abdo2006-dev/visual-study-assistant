@@ -23,6 +23,18 @@ function makeVisual(
   };
 }
 
+function makeGeneratedVisual(
+  id: string,
+  parameters: Record<string, unknown>
+): VisualBlock {
+  return {
+    ...makeVisual(id, parameters),
+    type: "generated-illustration",
+    templateId: "generated-illustration",
+    title: "Generated illustration",
+  };
+}
+
 function makeFakeProvider(planVisualsResult: VisualPlan = { assignments: [] }) {
   const lesson = createChargedSphereMockLesson();
   const createLessonPlan = vi.fn(async () => lesson);
@@ -267,5 +279,30 @@ describe("attachPlannedVisuals", () => {
 
     expect(result.sections.find((s) => s.id === "region-inside")?.visuals).toHaveLength(1);
     expect(result.sections.find((s) => s.id === "region-outside")?.visuals).toHaveLength(1);
+  });
+
+  it("treats generated illustrations with the same prompt as duplicates even if image bytes differ", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const visualA = makeGeneratedVisual("visual-a", {
+      imagePrompt: "Compare capacitor dielectric behavior in two battery states.",
+      imageDataUrl: "data:image/png;base64,Zmlyc3Q=",
+      mimeType: "image/png",
+    });
+    const visualB = makeGeneratedVisual("visual-b", {
+      imagePrompt: "Compare capacitor dielectric behavior in two battery states.",
+      imageDataUrl: "data:image/png;base64,c2Vjb25k",
+      mimeType: "image/png",
+    });
+    const { provider, lesson } = makeFakeProvider({
+      assignments: [
+        { sectionId: "region-inside", visual: visualA },
+        { sectionId: "region-outside", visual: visualB },
+      ],
+    });
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
+
+    expect(result.sections.find((s) => s.id === "region-inside")?.visuals).toHaveLength(1);
+    expect(result.sections.find((s) => s.id === "region-outside")?.visuals).toEqual([]);
   });
 });

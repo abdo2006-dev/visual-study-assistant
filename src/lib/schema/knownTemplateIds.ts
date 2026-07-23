@@ -18,4 +18,5 @@ export const KNOWN_TEMPLATE_IDS = [
   "infinite-plane",
   "electric-dipole",
   "dielectric-polarization",
+  "generated-illustration",
 ] as const;
