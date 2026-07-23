@@ -17,4 +17,5 @@ export const KNOWN_TEMPLATE_IDS = [
   "long-charged-wire",
   "infinite-plane",
   "electric-dipole",
+  "dielectric-polarization",
 ] as const;

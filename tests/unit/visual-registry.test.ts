@@ -10,6 +10,10 @@ const expectedTemplateIds = [
   "coordinate-geometry",
   "wave-diagram",
   "simple-circuit",
+  "long-charged-wire",
+  "infinite-plane",
+  "electric-dipole",
+  "dielectric-polarization",
 ];
 
 describe("getVisualTemplate", () => {

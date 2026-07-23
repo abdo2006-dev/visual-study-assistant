@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { CoordinateGeometryDiagram } from "@/components/visuals/mathematical-plot/coordinate-geometry-diagram";
 import { WaveDiagram } from "@/components/visuals/mathematical-plot/wave-diagram";
 import { ProcessFlowDiagram } from "@/components/visuals/process-flow/process-flow-diagram";
+import { DielectricPolarization } from "@/components/visuals/scientific-diagram/dielectric-polarization";
 import { ElectricDipole } from "@/components/visuals/scientific-diagram/electric-dipole";
 import { ForceVectorDiagram } from "@/components/visuals/scientific-diagram/force-vector-diagram";
 import { InfinitePlane } from "@/components/visuals/scientific-diagram/infinite-plane";
@@ -12,6 +13,7 @@ import { RadialChargedSphere } from "@/components/visuals/scientific-diagram/rad
 import { SimpleCircuit } from "@/components/visuals/scientific-diagram/simple-circuit";
 import { ParticleContainer } from "@/components/visuals/simulation/particle-container";
 import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinateGeometry";
+import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { electricDipoleParamsSchema } from "@/lib/schema/templates/electricDipole";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
 import { infinitePlaneParamsSchema } from "@/lib/schema/templates/infinitePlane";
@@ -69,6 +71,10 @@ export const visualTemplateRegistry: Record<string, VisualTemplateDefinition<unk
   "long-charged-wire": defineTemplate(longChargedWireParamsSchema, LongChargedWire),
   "infinite-plane": defineTemplate(infinitePlaneParamsSchema, InfinitePlane),
   "electric-dipole": defineTemplate(electricDipoleParamsSchema, ElectricDipole),
+  "dielectric-polarization": defineTemplate(
+    dielectricPolarizationParamsSchema,
+    DielectricPolarization
+  ),
 };
 
 export function getVisualTemplate(templateId: string) {

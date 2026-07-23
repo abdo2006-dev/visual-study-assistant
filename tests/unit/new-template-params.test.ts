@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinateGeometry";
+import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
 import { particleContainerParamsSchema } from "@/lib/schema/templates/particleContainer";
 import { processFlowDiagramParamsSchema } from "@/lib/schema/templates/processFlowDiagram";
@@ -87,6 +88,20 @@ describe("simpleCircuitParamsSchema", () => {
       simpleCircuitParamsSchema.parse({
         resistors: [{ id: "r1", label: "R1", resistanceOhms: -5 }],
       })
+    ).toThrow();
+  });
+});
+
+describe("dielectricPolarizationParamsSchema", () => {
+  it("fills in defaults for an empty object", () => {
+    const parsed = dielectricPolarizationParamsSchema.parse({});
+    expect(parsed.materialKind).toBe("mixed");
+    expect(parsed.showOpposingField).toBe(true);
+  });
+
+  it("rejects an alignment outside [0,1]", () => {
+    expect(() =>
+      dielectricPolarizationParamsSchema.parse({ initialAlignment: 1.5 })
     ).toThrow();
   });
 });

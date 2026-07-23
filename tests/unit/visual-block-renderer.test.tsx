@@ -51,6 +51,10 @@ describe("VisualBlockRenderer", () => {
     "coordinate-geometry",
     "wave-diagram",
     "simple-circuit",
+    "long-charged-wire",
+    "infinite-plane",
+    "electric-dipole",
+    "dielectric-polarization",
   ];
 
   it.each(allTemplateIds)("renders %s with default (empty) parameters", (templateId) => {

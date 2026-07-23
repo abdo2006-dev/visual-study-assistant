@@ -91,6 +91,35 @@ describe("GeminiProvider.planVisuals", () => {
     expect(result.assignments).toEqual([]);
   });
 
+  it("accepts the dielectric-polarization template for dielectric field reduction", async () => {
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        assignments: [
+          {
+            sectionId: "s1",
+            type: "scientific-diagram",
+            templateId: "dielectric-polarization",
+            title: "Polarization reduces the net field",
+            educationalPurpose:
+              "Shows molecular dipoles creating an opposing polarization field.",
+            accessibilityDescription:
+              "A dielectric slab with aligned dipoles, bound charges, and opposing field arrows.",
+            parametersJson: '{"materialKind":"mixed","initialAlignment":0.7}',
+          },
+        ],
+      }),
+    });
+
+    const { GeminiProvider } = await import("@/lib/ai/gemini/geminiProvider");
+    const result = await new GeminiProvider().planVisuals({ lesson });
+
+    expect(result.assignments[0].visual.templateId).toBe("dielectric-polarization");
+    expect(result.assignments[0].visual.parameters).toMatchObject({
+      materialKind: "mixed",
+      initialAlignment: 0.7,
+    });
+  });
+
   it("returns no assignments when the response reports none", async () => {
     generateContent.mockResolvedValueOnce({ text: JSON.stringify({ assignments: [] }) });
 

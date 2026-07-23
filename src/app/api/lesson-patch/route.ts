@@ -7,10 +7,10 @@ import { generateLessonPatch } from "@/lib/ai/lessonPatchService";
 import { streamWithProgress } from "@/lib/ai/streamWithProgress";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Vercel Hobby plan hard ceiling — matches this route's own 60s AbortController below.
+export const maxDuration = 60; // Vercel Hobby plan hard ceiling; the route aborts earlier so it can stream a typed error before the platform stops it.
 
 // Overridable so tests can exercise the timeout path without waiting 60s.
-const TIMEOUT_MS = Number(process.env.LESSON_PATCH_TIMEOUT_MS) || 60_000;
+const TIMEOUT_MS = Number(process.env.LESSON_PATCH_TIMEOUT_MS) || 52_000;
 
 const condensedVisualSchema = z.object({
   id: z.string(),

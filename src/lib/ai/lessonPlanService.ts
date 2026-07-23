@@ -125,10 +125,15 @@ export async function attachPlannedVisuals(
     if (assignments.length === 0) return lesson;
 
     const visualBySectionId = new Map<string, VisualBlock>();
+    const seenVisualFingerprints = new Set<string>();
     for (const assignment of assignments) {
-      if (!visualBySectionId.has(assignment.sectionId)) {
-        visualBySectionId.set(assignment.sectionId, assignment.visual);
-      }
+      if (visualBySectionId.has(assignment.sectionId)) continue;
+
+      const fingerprint = visualFingerprint(assignment.visual);
+      if (seenVisualFingerprints.has(fingerprint)) continue;
+
+      seenVisualFingerprints.add(fingerprint);
+      visualBySectionId.set(assignment.sectionId, assignment.visual);
     }
 
     return {
@@ -146,4 +151,21 @@ export async function attachPlannedVisuals(
     console.error("[visual-planning] failed, lesson will have no visuals", err);
     return lesson;
   }
+}
+
+function visualFingerprint(visual: VisualBlock): string {
+  return `${visual.templateId}:${stableStringify(visual.parameters)}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableStringify(child)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }

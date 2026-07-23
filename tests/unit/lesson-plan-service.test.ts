@@ -2,6 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LessonAIProvider, VisualPlan } from "@/lib/ai/provider";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
+import type { VisualBlock } from "@/lib/schema/visualBlocks";
+
+function makeVisual(
+  id: string,
+  parameters: Record<string, unknown> = {}
+): VisualBlock {
+  return {
+    id,
+    type: "scientific-diagram",
+    templateId: "radial-charged-sphere",
+    title: "Field inside the sphere",
+    educationalPurpose: "Shows how the field grows linearly inside.",
+    accessibilityDescription: "A charged sphere cross-section.",
+    parameters,
+    controls: [],
+    annotations: [],
+    factualChecks: [],
+    generationStatus: "ready",
+  };
+}
 
 function makeFakeProvider(planVisualsResult: VisualPlan = { assignments: [] }) {
   const lesson = createChargedSphereMockLesson();
@@ -211,5 +231,41 @@ describe("attachPlannedVisuals", () => {
     await attachPlannedVisuals(provider, lesson, undefined, controller.signal, 30_000);
 
     expect(seenSignal?.aborted).toBe(true);
+  });
+
+  it("keeps only the first identical visual instead of repeating it across sections", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const visualA = makeVisual("visual-a", { sphereType: "solid-insulator" });
+    const visualB = makeVisual("visual-b", { sphereType: "solid-insulator" });
+    const { provider, lesson } = makeFakeProvider({
+      assignments: [
+        { sectionId: "region-inside", visual: visualA },
+        { sectionId: "region-outside", visual: visualB },
+      ],
+    });
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
+
+    expect(result.sections.find((s) => s.id === "region-inside")?.visuals).toEqual([
+      { ...visualA, sourceSectionId: "region-inside" },
+    ]);
+    expect(result.sections.find((s) => s.id === "region-outside")?.visuals).toEqual([]);
+  });
+
+  it("keeps visuals that use the same template for meaningfully different parameters", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const insideVisual = makeVisual("visual-a", { sphereType: "solid-insulator" });
+    const outsideVisual = makeVisual("visual-b", { sphereType: "shell" });
+    const { provider, lesson } = makeFakeProvider({
+      assignments: [
+        { sectionId: "region-inside", visual: insideVisual },
+        { sectionId: "region-outside", visual: outsideVisual },
+      ],
+    });
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
+
+    expect(result.sections.find((s) => s.id === "region-inside")?.visuals).toHaveLength(1);
+    expect(result.sections.find((s) => s.id === "region-outside")?.visuals).toHaveLength(1);
   });
 });

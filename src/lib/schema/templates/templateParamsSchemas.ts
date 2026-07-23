@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { coordinateGeometryParamsSchema } from "@/lib/schema/templates/coordinateGeometry";
+import { dielectricPolarizationParamsSchema } from "@/lib/schema/templates/dielectricPolarization";
 import { electricDipoleParamsSchema } from "@/lib/schema/templates/electricDipole";
 import { forceVectorDiagramParamsSchema } from "@/lib/schema/templates/forceVectorDiagram";
 import { infinitePlaneParamsSchema } from "@/lib/schema/templates/infinitePlane";
@@ -24,6 +25,7 @@ export const templateParamsSchemas: Record<string, z.ZodType> = {
   "long-charged-wire": longChargedWireParamsSchema,
   "infinite-plane": infinitePlaneParamsSchema,
   "electric-dipole": electricDipoleParamsSchema,
+  "dielectric-polarization": dielectricPolarizationParamsSchema,
   "force-vector-diagram": forceVectorDiagramParamsSchema,
   "particle-container": particleContainerParamsSchema,
   "process-flow-diagram": processFlowDiagramParamsSchema,
