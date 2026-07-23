@@ -88,13 +88,12 @@ export async function generateLessonPlan(
 }
 
 /**
- * Best-effort: a lesson is fully usable with no visuals (that's exactly
- * today's behavior), so a visual-planning failure — rate limit, timeout,
- * malformed AI output that survives generateWithRepair's one retry, or
- * simply running out of the request's remaining time budget — must never
- * fail lesson generation itself. Any error here is swallowed (after
- * logging) and the lesson is returned exactly as createLessonPlan produced
- * it.
+ * Best-effort: visual-planning failures — rate limits, timeouts, malformed
+ * AI output that survives generateWithRepair's one retry, or simply running
+ * out of the route's remaining time budget — must never fail lesson
+ * generation itself. When the AI planner cannot provide visuals, known
+ * lesson patterns get deterministic fallback visuals so the user does not
+ * end up with an empty, text-only lesson.
  */
 export async function attachPlannedVisuals(
   provider: LessonAIProvider,
@@ -105,9 +104,9 @@ export async function attachPlannedVisuals(
 ): Promise<VisualLesson> {
   if (budgetMs < MIN_VISUAL_PLANNING_BUDGET_MS) {
     console.error(
-      `[visual-planning] skipped — only ${budgetMs}ms left in the request budget, lesson will have no visuals`
+      `[visual-planning] skipped — only ${budgetMs}ms left in the request budget, using fallback visuals`
     );
-    return lesson;
+    return attachFallbackVisuals(lesson);
   }
 
   try {
@@ -122,7 +121,7 @@ export async function attachPlannedVisuals(
       signal: combinedSignal,
     });
 
-    if (assignments.length === 0) return lesson;
+    if (assignments.length === 0) return attachFallbackVisuals(lesson);
 
     const visualBySectionId = new Map<string, VisualBlock>();
     const seenVisualFingerprints = new Set<string>();
@@ -136,7 +135,7 @@ export async function attachPlannedVisuals(
       visualBySectionId.set(assignment.sectionId, assignment.visual);
     }
 
-    return {
+    return attachFallbackVisuals({
       ...lesson,
       sections: lesson.sections.map((section) => {
         const visual = visualBySectionId.get(section.id);
@@ -146,11 +145,169 @@ export async function attachPlannedVisuals(
           visuals: [{ ...visual, sourceSectionId: section.id }],
         };
       }),
-    };
+    });
   } catch (err) {
-    console.error("[visual-planning] failed, lesson will have no visuals", err);
-    return lesson;
+    console.error("[visual-planning] failed, using fallback visuals", err);
+    return attachFallbackVisuals(lesson);
   }
+}
+
+function attachFallbackVisuals(lesson: VisualLesson): VisualLesson {
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section) => {
+      if (section.visuals.length > 0) return section;
+
+      const visual = buildFallbackVisual(lesson.title, section);
+      if (!visual) return section;
+
+      return {
+        ...section,
+        visuals: [visual],
+      };
+    }),
+  };
+}
+
+function buildFallbackVisual(
+  lessonTitle: string,
+  section: VisualLesson["sections"][number]
+): VisualBlock | null {
+  const heading = section.heading?.trim() || "this section";
+  const sectionText = `${heading}\n${section.sourceText}\n${section.simplifiedExplanation}`;
+  const normalized = sectionText.toLowerCase();
+
+  if (mentionsCapacitorState(normalized) || mentionsCapacitorNetwork(normalized)) {
+    return buildGeneratedFallbackVisual({
+      lessonTitle,
+      sectionId: section.id,
+      heading,
+      sectionText,
+      caption: `Generated illustration for ${heading}.`,
+    });
+  }
+
+  if (mentionsDielectricPolarization(normalized)) {
+    return {
+      id: crypto.randomUUID(),
+      type: "scientific-diagram",
+      templateId: "dielectric-polarization",
+      title: "Dielectric Polarization and Opposing Field",
+      educationalPurpose:
+        "Shows how molecules polarize and create an opposing internal field in a dielectric.",
+      accessibilityDescription:
+        "A dielectric slab with aligned molecular dipoles, bound surface charge, an external field arrow, and a smaller opposing internal field arrow.",
+      parameters: {
+        materialKind: normalized.includes("permanent") ? "permanent" : "mixed",
+        showExternalField: true,
+        showOpposingField: true,
+        showBoundSurfaceCharge: true,
+        initialAlignment: 0.75,
+      },
+      controls: [],
+      annotations: [],
+      sourceSectionId: section.id,
+      factualChecks: [],
+      generationStatus: "ready",
+    };
+  }
+
+  if (mentionsParallelPlateField(normalized)) {
+    return {
+      id: crypto.randomUUID(),
+      type: "scientific-diagram",
+      templateId: "infinite-plane",
+      title: "Parallel-Plate Capacitor Field",
+      educationalPurpose:
+        "Shows the nearly uniform electric field confined between two capacitor plates.",
+      accessibilityDescription:
+        "Two oppositely charged parallel plates with field arrows between them and a potential plot.",
+      parameters: {
+        configuration: "parallel-plates",
+        chargeSign: "positive",
+        showFieldVectors: true,
+        showPotentialPlot: true,
+        initialObservationPositionRatio: 0,
+      },
+      controls: [],
+      annotations: [],
+      sourceSectionId: section.id,
+      factualChecks: [],
+      generationStatus: "ready",
+    };
+  }
+
+  return null;
+}
+
+function buildGeneratedFallbackVisual({
+  lessonTitle,
+  sectionId,
+  heading,
+  sectionText,
+  caption,
+}: {
+  lessonTitle: string;
+  sectionId: string;
+  heading: string;
+  sectionText: string;
+  caption: string;
+}): VisualBlock {
+  return {
+    id: crypto.randomUUID(),
+    type: "generated-illustration",
+    templateId: "generated-illustration",
+    title: `${heading} illustration`,
+    educationalPurpose:
+      "Provides a section-specific instructional image where no coded visual template is specific enough.",
+    accessibilityDescription: `A generated instructional illustration explaining ${heading}.`,
+    parameters: {
+      imagePrompt: [
+        `Create one clear textbook-style science illustration for the lesson "${lessonTitle}", section "${heading}".`,
+        `It must explain this exact content: ${sectionText.slice(0, 900)}`,
+        "Do not draw an interactive slider or reuse a generic capacitor field simulation.",
+        "Use short labels, arrows, before/after panels, and callouts only where they directly clarify the concept.",
+      ].join(" "),
+      caption,
+    },
+    controls: [],
+    annotations: [],
+    sourceSectionId: sectionId,
+    factualChecks: [],
+    generationStatus: "pending",
+  };
+}
+
+function mentionsDielectricPolarization(text: string): boolean {
+  return (
+    text.includes("dielectric") &&
+    /\b(polariz|dipole|bound charge|internal field|opposing field|permittivity|dielectric constant)\b/.test(
+      text
+    )
+  );
+}
+
+function mentionsCapacitorState(text: string): boolean {
+  return (
+    (text.includes("capacitor") || text.includes("dielectric")) &&
+    /\b(battery|disconnect|connected|constant charge|constant voltage|charge stays|voltage stays|energy decreases|energy increases)\b/.test(
+      text
+    )
+  );
+}
+
+function mentionsCapacitorNetwork(text: string): boolean {
+  return (
+    /\bcapacitors?\b/.test(text) &&
+    /\b(series|parallel|equivalent capacitance|reciprocal|network)\b/.test(text)
+  );
+}
+
+function mentionsParallelPlateField(text: string): boolean {
+  return (
+    /\b(capacitor|parallel plates?|plates)\b/.test(text) &&
+    /\b(electric field|voltage|potential|charge)\b/.test(text)
+  );
 }
 
 function visualFingerprint(visual: VisualBlock): string {

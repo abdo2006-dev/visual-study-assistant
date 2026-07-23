@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LessonAIProvider, VisualPlan } from "@/lib/ai/provider";
 import { createChargedSphereMockLesson } from "@/lib/mock/chargedSphereLesson";
+import type { VisualLesson } from "@/lib/schema/lesson";
 import type { VisualBlock } from "@/lib/schema/visualBlocks";
 
 function makeVisual(
@@ -41,6 +42,49 @@ function makeFakeProvider(planVisualsResult: VisualPlan = { assignments: [] }) {
   const planVisuals = vi.fn(async () => planVisualsResult);
   const provider = { createLessonPlan, planVisuals } as unknown as LessonAIProvider;
   return { provider, createLessonPlan, planVisuals, lesson };
+}
+
+function makeCapacitorLesson(): VisualLesson {
+  const now = new Date().toISOString();
+  return {
+    schemaVersion: 1,
+    id: "capacitor-lesson",
+    title: "Capacitors, Dielectrics, and Circuit Networks",
+    subject: "physics",
+    topic: "Capacitors",
+    source: { kind: "pasted-text", originalText: "capacitor source" },
+    summary: "A lesson about dielectrics and capacitor circuits.",
+    prerequisites: [],
+    learningObjectives: [],
+    createdAt: now,
+    updatedAt: now,
+    sections: [
+      {
+        id: "dielectric",
+        heading: "Dielectrics and Relative Permittivity",
+        sourceText:
+          "A dielectric polarizes in an electric field. Molecules form dipoles and bound charge creates an opposing internal field.",
+        simplifiedExplanation:
+          "A dielectric polarizes in an electric field and reduces the net field through an opposing internal field.",
+        importantTerms: [],
+        equations: [],
+        visuals: [],
+        curiosityQuestions: [],
+      },
+      {
+        id: "disconnected",
+        heading: "Dielectric Inserted After Disconnecting the Battery",
+        sourceText:
+          "After the battery is disconnected, charge remains constant. Adding a dielectric increases capacitance, so voltage and electric field drop.",
+        simplifiedExplanation:
+          "With the battery disconnected, Q stays fixed while V and E decrease after inserting the dielectric.",
+        importantTerms: [],
+        equations: [],
+        visuals: [],
+        curiosityQuestions: [],
+      },
+    ],
+  };
 }
 
 describe("generateLessonPlan", () => {
@@ -176,6 +220,30 @@ describe("generateLessonPlan", () => {
     expect(result).toEqual(lesson);
   });
 
+  it("adds fallback visuals when visual planning returns no assignments for known capacitor content", async () => {
+    const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
+    const lesson = makeCapacitorLesson();
+    const provider = {
+      createLessonPlan: vi.fn(async () => lesson),
+      planVisuals: vi.fn(async () => ({ assignments: [] })),
+    } as unknown as LessonAIProvider;
+
+    const result = await generateLessonPlan(provider, {
+      sourceText: "fallback visuals for capacitor content",
+    });
+
+    expect(result.sections[0]?.visuals[0]).toMatchObject({
+      templateId: "dielectric-polarization",
+      generationStatus: "ready",
+      sourceSectionId: "dielectric",
+    });
+    expect(result.sections[1]?.visuals[0]).toMatchObject({
+      templateId: "generated-illustration",
+      generationStatus: "pending",
+      sourceSectionId: "disconnected",
+    });
+  });
+
   it("calls onProgress at each phase boundary, in order", async () => {
     const { generateLessonPlan } = await import("@/lib/ai/lessonPlanService");
     const { provider } = makeFakeProvider();
@@ -227,6 +295,36 @@ describe("attachPlannedVisuals", () => {
     await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
 
     expect(planVisuals).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses fallback visuals when visual planning fails for known capacitor content", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const lesson = makeCapacitorLesson();
+    const provider = {
+      planVisuals: vi.fn(async () => {
+        throw new Error("visual planner unavailable");
+      }),
+    } as unknown as LessonAIProvider;
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 30_000);
+
+    expect(result.sections.map((section) => section.visuals[0]?.templateId)).toEqual([
+      "dielectric-polarization",
+      "generated-illustration",
+    ]);
+  });
+
+  it("uses fallback visuals when the remaining visual planning budget is too small", async () => {
+    const { attachPlannedVisuals } = await import("@/lib/ai/lessonPlanService");
+    const lesson = makeCapacitorLesson();
+    const provider = {
+      planVisuals: vi.fn(),
+    } as unknown as LessonAIProvider;
+
+    const result = await attachPlannedVisuals(provider, lesson, undefined, undefined, 1_000);
+
+    expect(provider.planVisuals).not.toHaveBeenCalled();
+    expect(result.sections[0]?.visuals[0]?.templateId).toBe("dielectric-polarization");
   });
 
   it("combines the caller's own abort signal with the budget timeout", async () => {
